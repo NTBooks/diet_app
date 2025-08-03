@@ -21,7 +21,7 @@ const db = new sqlite3.Database('./diet_app.db', (err) => {
     }
 });
 
-// Create tables if not exist
+// Create tables if not exist (legacy tables for backward compatibility)
 const createTables = () => {
     db.run(`CREATE TABLE IF NOT EXISTS meals (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,17 +68,18 @@ app.post('/api/meals', (req, res) => {
     const name = sanitize(req.body.name);
     const calories_per_serving = sanitize(req.body.calories_per_serving);
     const ounces_per_serving = sanitize(req.body.ounces_per_serving);
+    const unit_type = sanitize(req.body.unit_type) || 'piece';
     if (!name || !calories_per_serving || !ounces_per_serving) {
         return res.status(400).json({ status: 'error', message: 'Missing required fields' });
     }
     db.run(
-        'INSERT INTO meals (name, calories_per_serving, ounces_per_serving) VALUES (?, ?, ?)',
-        [name, calories_per_serving, ounces_per_serving],
+        'INSERT INTO meals (name, calories_per_serving, ounces_per_serving, unit_type) VALUES (?, ?, ?, ?)',
+        [name, calories_per_serving, ounces_per_serving, unit_type],
         function (err) {
             if (err) {
                 return res.status(500).json({ status: 'error', message: 'Database error' });
             }
-            res.json({ status: 'success', message: 'Meal added', meal_id: this.lastID });
+            res.json({ status: 'success', message: 'Food metric added', meal_id: this.lastID });
         }
     );
 });
@@ -512,6 +513,16 @@ app.get('/api/weight_log_range', (req, res) => {
     });
 });
 
+// Get all weight data for trend analysis
+app.get('/api/weight_log_all', (req, res) => {
+    db.all('SELECT date, weight FROM weight_log ORDER BY date ASC', [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ status: 'error', message: 'Database error' });
+        }
+        res.json({ status: 'success', weights: rows });
+    });
+});
+
 // Delete meal log entry
 app.delete('/api/meal_log/:id', (req, res) => {
     const id = sanitize(req.params.id);
@@ -545,6 +556,207 @@ app.delete('/api/quick_add/:id', (req, res) => {
             return res.status(404).json({ status: 'error', message: 'Quick add entry not found' });
         }
         res.json({ status: 'success', message: 'Quick add entry deleted' });
+    });
+});
+
+// === NEW ENHANCED FEATURES ===
+
+// User Preferences API
+app.get('/api/preferences', (req, res) => {
+    db.all('SELECT key, value FROM user_preferences', [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ status: 'error', message: 'Database error' });
+        }
+        const preferences = {};
+        rows.forEach(row => {
+            preferences[row.key] = row.value;
+        });
+        res.json({ status: 'success', preferences });
+    });
+});
+
+app.post('/api/preferences', (req, res) => {
+    const key = sanitize(req.body.key);
+    const value = sanitize(req.body.value);
+
+    if (!key || value === undefined) {
+        return res.status(400).json({ status: 'error', message: 'Missing key or value' });
+    }
+
+    db.run(
+        'INSERT OR REPLACE INTO user_preferences (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+        [key, value],
+        function (err) {
+            if (err) {
+                return res.status(500).json({ status: 'error', message: 'Database error' });
+            }
+            res.json({ status: 'success', message: 'Preference updated' });
+        }
+    );
+});
+
+// Exercise Tracking API
+app.post('/api/exercise_log', (req, res) => {
+    const exercise_name = sanitize(req.body.exercise_name);
+    const duration_minutes = sanitize(req.body.duration_minutes);
+    const calories_burned = sanitize(req.body.calories_burned);
+    const date = sanitize(req.body.date);
+    const notes = sanitize(req.body.notes);
+
+    if (!exercise_name || !duration_minutes || !date) {
+        return res.status(400).json({ status: 'error', message: 'Missing required fields' });
+    }
+
+    db.run(
+        'INSERT INTO exercise_log (exercise_name, duration_minutes, calories_burned, date, notes) VALUES (?, ?, ?, ?, ?)',
+        [exercise_name, duration_minutes, calories_burned, date, notes],
+        function (err) {
+            if (err) {
+                return res.status(500).json({ status: 'error', message: 'Database error' });
+            }
+            res.json({ status: 'success', message: 'Exercise logged', log_id: this.lastID });
+        }
+    );
+});
+
+app.get('/api/exercise_log_for_day', (req, res) => {
+    const date = sanitize(req.query.date);
+    if (!date) {
+        return res.status(400).json({ status: 'error', message: 'Missing date parameter' });
+    }
+
+    db.all('SELECT * FROM exercise_log WHERE date = ? ORDER BY id ASC', [date], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ status: 'error', message: 'Database error' });
+        }
+        res.json({ status: 'success', exercises: rows });
+    });
+});
+
+app.delete('/api/exercise_log/:id', (req, res) => {
+    const id = sanitize(req.params.id);
+    if (!id) {
+        return res.status(400).json({ status: 'error', message: 'Missing exercise log ID' });
+    }
+
+    db.run('DELETE FROM exercise_log WHERE id = ?', [id], function (err) {
+        if (err) {
+            return res.status(500).json({ status: 'error', message: 'Database error' });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ status: 'error', message: 'Exercise log entry not found' });
+        }
+        res.json({ status: 'success', message: 'Exercise log entry deleted' });
+    });
+});
+
+// Meal Categories API
+app.get('/api/meal_categories', (req, res) => {
+    db.all('SELECT * FROM meal_categories ORDER BY name', [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ status: 'error', message: 'Database error' });
+        }
+        res.json({ status: 'success', categories: rows });
+    });
+});
+
+app.post('/api/meal_categories', (req, res) => {
+    const name = sanitize(req.body.name);
+    const color = sanitize(req.body.color) || '#007bff';
+
+    if (!name) {
+        return res.status(400).json({ status: 'error', message: 'Missing category name' });
+    }
+
+    db.run(
+        'INSERT INTO meal_categories (name, color) VALUES (?, ?)',
+        [name, color],
+        function (err) {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(400).json({ status: 'error', message: 'Category already exists' });
+                }
+                return res.status(500).json({ status: 'error', message: 'Database error' });
+            }
+            res.json({ status: 'success', message: 'Category added', category_id: this.lastID });
+        }
+    );
+});
+
+// Enhanced Meals API with categories
+app.post('/api/meals', (req, res) => {
+    const name = sanitize(req.body.name);
+    const calories_per_serving = sanitize(req.body.calories_per_serving);
+    const ounces_per_serving = sanitize(req.body.ounces_per_serving);
+    const category = sanitize(req.body.category) || 'Other';
+
+    if (!name || !calories_per_serving || !ounces_per_serving) {
+        return res.status(400).json({ status: 'error', message: 'Missing required fields' });
+    }
+
+    db.run(
+        'INSERT INTO meals (name, calories_per_serving, ounces_per_serving, category) VALUES (?, ?, ?, ?)',
+        [name, calories_per_serving, ounces_per_serving, category],
+        function (err) {
+            if (err) {
+                return res.status(500).json({ status: 'error', message: 'Database error' });
+            }
+            res.json({ status: 'success', message: 'Meal added', meal_id: this.lastID });
+        }
+    );
+});
+
+// Meal Planning API
+app.post('/api/meal_plans', (req, res) => {
+    const meal_name = sanitize(req.body.meal_name);
+    const planned_date = sanitize(req.body.planned_date);
+    const meal_type = sanitize(req.body.meal_type) || 'Other';
+    const notes = sanitize(req.body.notes);
+
+    if (!meal_name || !planned_date) {
+        return res.status(400).json({ status: 'error', message: 'Missing required fields' });
+    }
+
+    db.run(
+        'INSERT INTO meal_plans (meal_name, planned_date, meal_type, notes) VALUES (?, ?, ?, ?)',
+        [meal_name, planned_date, meal_type, notes],
+        function (err) {
+            if (err) {
+                return res.status(500).json({ status: 'error', message: 'Database error' });
+            }
+            res.json({ status: 'success', message: 'Meal planned', plan_id: this.lastID });
+        }
+    );
+});
+
+app.get('/api/meal_plans_for_day', (req, res) => {
+    const date = sanitize(req.query.date);
+    if (!date) {
+        return res.status(400).json({ status: 'error', message: 'Missing date parameter' });
+    }
+
+    db.all('SELECT * FROM meal_plans WHERE planned_date = ? ORDER BY meal_type, id ASC', [date], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ status: 'error', message: 'Database error' });
+        }
+        res.json({ status: 'success', plans: rows });
+    });
+});
+
+app.delete('/api/meal_plans/:id', (req, res) => {
+    const id = sanitize(req.params.id);
+    if (!id) {
+        return res.status(400).json({ status: 'error', message: 'Missing meal plan ID' });
+    }
+
+    db.run('DELETE FROM meal_plans WHERE id = ?', [id], function (err) {
+        if (err) {
+            return res.status(500).json({ status: 'error', message: 'Database error' });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ status: 'error', message: 'Meal plan not found' });
+        }
+        res.json({ status: 'success', message: 'Meal plan deleted' });
     });
 });
 

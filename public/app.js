@@ -7,7 +7,8 @@ async function updateMealSelect(selectedId) {
   data.meals.forEach(meal => {
     const option = document.createElement('option');
     option.value = meal.id;
-    option.textContent = `${meal.name} (${meal.calories_per_serving} cal/${meal.ounces_per_serving}oz) - ID: ${meal.id}`;
+    const unitType = meal.unit_type || 'piece';
+    option.textContent = `${meal.name} (${meal.calories_per_serving} cal/${meal.ounces_per_serving} ${unitType}) - ID: ${meal.id}`;
     if (selectedId && meal.id === selectedId) {
       option.selected = true;
     }
@@ -21,7 +22,8 @@ document.getElementById('addMealForm').addEventListener('submit', async (e) => {
   const body = {
     name: form.name.value,
     calories_per_serving: form.calories_per_serving.value,
-    ounces_per_serving: form.ounces_per_serving.value
+    ounces_per_serving: form.ounces_per_serving.value,
+    unit_type: form.unit_type.value
   };
   const res = await fetch('/api/meals', {
     method: 'POST',
@@ -39,7 +41,7 @@ document.getElementById('addMealForm').addEventListener('submit', async (e) => {
               <svg class="h-5 w-5 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span class="text-green-800 font-medium">Meal added successfully!</span>
+              <span class="text-green-800 font-medium">Food metric added successfully!</span>
             </div>
           </div>
         `;
@@ -50,7 +52,7 @@ document.getElementById('addMealForm').addEventListener('submit', async (e) => {
               <svg class="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span class="text-red-800 font-medium">Error adding meal: ${data.message}</span>
+              <span class="text-red-800 font-medium">Error adding food metric: ${data.message}</span>
             </div>
           </div>
         `;
@@ -713,10 +715,11 @@ async function loadSavedMeals() {
 
     if (data.status === 'success' && data.meals && data.meals.length > 0) {
       const rows = data.meals.map(meal => {
+        const unitType = meal.unit_type || 'piece';
         return `<tr class='hover:bg-gray-50'>
           <td class='border border-gray-300 px-4 py-2 font-medium'>${meal.name} (ID: ${meal.id})</td>
           <td class='border border-gray-300 px-4 py-2 text-center'>${meal.calories_per_serving}</td>
-          <td class='border border-gray-300 px-4 py-2 text-center'>${meal.ounces_per_serving}</td>
+          <td class='border border-gray-300 px-4 py-2 text-center'>${meal.ounces_per_serving} ${unitType}</td>
           <td class='border border-gray-300 px-4 py-2 text-center'>
             <button onclick="deleteMealTemplate(${meal.id}, '${meal.name}')" class="text-red-600 hover:text-red-800 transition-colors">
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -732,9 +735,9 @@ async function loadSavedMeals() {
           <table class="w-full border-collapse mb-2">
             <thead>
               <tr class="bg-gray-100">
-                <th class="border border-gray-300 px-4 py-2 text-left font-semibold">Meal Name</th>
-                <th class="border border-gray-300 px-4 py-2 text-center font-semibold">Calories per Serving</th>
-                <th class="border border-gray-300 px-4 py-2 text-center font-semibold">Ounces per Serving</th>
+                <th class="border border-gray-300 px-4 py-2 text-left font-semibold">Food Metric Name</th>
+                <th class="border border-gray-300 px-4 py-2 text-center font-semibold">Calories per Unit</th>
+                <th class="border border-gray-300 px-4 py-2 text-center font-semibold">Units per Serving</th>
                 <th class="border border-gray-300 px-4 py-2 text-center font-semibold">Actions</th>
               </tr>
             </thead>
@@ -743,10 +746,10 @@ async function loadSavedMeals() {
         </div>
       `;
     } else {
-      container.innerHTML = '<div class="text-gray-500 text-center py-4">No saved meal templates yet.</div>';
+      container.innerHTML = '<div class="text-gray-500 text-center py-4">No saved food metric templates yet.</div>';
     }
   } catch (error) {
-    document.getElementById('savedMeals').innerHTML = '<div class="text-red-500 text-center py-4">Error loading saved meals</div>';
+    document.getElementById('savedMeals').innerHTML = '<div class="text-red-500 text-center py-4">Error loading saved food metrics</div>';
   }
 }
 
@@ -869,21 +872,172 @@ async function loadTodayWeight() {
   }
 }
 
-// Load recent weights (last 7 days)
+// Weight pagination state
+let currentWeightWeek = 0; // 0 = current week, -1 = previous week, etc.
+
+// Load recent weights with pagination (2 weeks)
 async function loadRecentWeights() {
   const today = new Date();
-  const weekAgo = new Date();
-  weekAgo.setDate(today.getDate() - 6);
-  const start = getLocalDate(weekAgo);
-  const end = getLocalDate(today);
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - (today.getDay() + (currentWeightWeek * 7)));
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 13); // 2 weeks (14 days)
+
+  const start = getLocalDate(weekStart);
+  const end = getLocalDate(weekEnd);
+
   const res = await fetch(`/api/weight_log_range?start=${start}&end=${end}`);
   const data = await res.json();
   const tbody = document.getElementById('recentWeightsTbody');
+
   if (data.status === 'success' && data.weights.length > 0) {
     tbody.innerHTML = data.weights.map(w => `<tr><td class='border px-2 py-1'>${w.date}</td><td class='border px-2 py-1'>${w.weight} lbs</td></tr>`).join('');
   } else {
-    tbody.innerHTML = `<tr><td colspan='2' class='text-gray-500 text-center'>No recent weights</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan='2' class='text-gray-500 text-center'>No weights for this period</td></tr>`;
   }
+
+  // Update week label
+  updateWeightWeekLabel();
+}
+
+function updateWeightWeekLabel() {
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - (today.getDay() + (currentWeightWeek * 7)));
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 13);
+
+  const label = document.getElementById('weightWeekLabel');
+  if (currentWeightWeek === 0) {
+    label.textContent = 'This Week + Next Week';
+  } else if (currentWeightWeek === -1) {
+    label.textContent = 'Previous 2 Weeks';
+  } else {
+    label.textContent = `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+  }
+}
+
+// Weight navigation functions
+function goToPreviousWeightWeek() {
+  currentWeightWeek--;
+  loadRecentWeights();
+  loadWeightChart();
+}
+
+function goToNextWeightWeek() {
+  currentWeightWeek++;
+  loadRecentWeights();
+  loadWeightChart();
+}
+
+// Load weight chart with trend line
+async function loadWeightChart() {
+  try {
+    const res = await fetch('/api/weight_log_all');
+    const data = await res.json();
+
+    if (data.status === 'success' && data.weights.length > 0) {
+      const ctx = document.getElementById('weightChart').getContext('2d');
+
+      // Destroy existing chart if it exists
+      if (window.weightChart) {
+        window.weightChart.destroy();
+      }
+
+      const weights = data.weights;
+      const labels = weights.map(w => w.date);
+      const values = weights.map(w => w.weight);
+
+      // Calculate trend line
+      const trendLine = calculateTrendLine(weights);
+
+      window.weightChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Weight',
+              data: values,
+              borderColor: 'rgb(59, 130, 246)',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              tension: 0.1,
+              pointRadius: 4,
+              pointBackgroundColor: 'rgb(59, 130, 246)'
+            },
+            {
+              label: 'Trend Line',
+              data: trendLine,
+              borderColor: 'rgb(239, 68, 68)',
+              backgroundColor: 'transparent',
+              borderDash: [5, 5],
+              tension: 0,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: false,
+              title: {
+                display: true,
+                text: 'Weight (lbs)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Date'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            }
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error loading weight chart:', error);
+  }
+}
+
+// Calculate trend line using linear regression
+function calculateTrendLine(weights) {
+  if (weights.length < 2) return weights.map(w => w.weight);
+
+  const n = weights.length;
+  const xValues = Array.from({ length: n }, (_, i) => i);
+  const yValues = weights.map(w => w.weight);
+
+  // Calculate means
+  const xMean = xValues.reduce((a, b) => a + b, 0) / n;
+  const yMean = yValues.reduce((a, b) => a + b, 0) / n;
+
+  // Calculate slope and intercept
+  let numerator = 0;
+  let denominator = 0;
+
+  for (let i = 0; i < n; i++) {
+    numerator += (xValues[i] - xMean) * (yValues[i] - yMean);
+    denominator += (xValues[i] - xMean) ** 2;
+  }
+
+  const slope = denominator === 0 ? 0 : numerator / denominator;
+  const intercept = yMean - slope * xMean;
+
+  // Generate trend line points
+  return xValues.map(x => slope * x + intercept);
 }
 
 // Cloudflare Error Modal Functions
@@ -1015,17 +1169,24 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTodayMeals();
   loadSavedMeals();
   loadLatestBPReading();
+
   // Set default dates for calendar
   const today = new Date();
   const weekAgo = new Date();
   weekAgo.setDate(today.getDate() - 6);
   document.getElementById('calendarEnd').value = getLocalDate(today);
   document.getElementById('calendarStart').value = getLocalDate(weekAgo);
+
   if (document.getElementById('weightLogForm')) {
     // Set today as default date
     document.getElementById('weightLogDate').value = getTodayLocalDate();
     loadTodayWeight();
     loadRecentWeights();
+    loadWeightChart();
+
+    // Add event listeners for weight navigation
+    document.getElementById('prevWeekBtn').addEventListener('click', goToPreviousWeightWeek);
+    document.getElementById('nextWeekBtn').addEventListener('click', goToNextWeightWeek);
   }
 
   // Start the midnight checking timer
