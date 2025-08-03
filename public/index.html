@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Diet App</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
     <style>
         .fade-in {
             animation: fadeIn 0.5s ease-in;
@@ -60,44 +60,34 @@
             <div id="quickAddMsg" class="mt-4"></div>
         </div>
 
-        <!-- Add New Food Metric Section -->
+        <!-- Log Food Metric Section -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">➕ Add New Food Metric</h2>
-            <form id="addMealForm" class="space-y-4">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">📝 Log Food Metric Eaten</h2>
+            <form id="logMealForm" class="grid gap-4 md:grid-cols-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Food Name</label>
-                    <input type="text" name="name" required
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                    <input type="date" name="date" id="logDate" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Calories per Unit</label>
-                    <input type="number" name="calories_per_serving" step="0.01" required
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Food Metric</label>
+                    <select name="meal_id" id="mealSelect" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Unit Type</label>
-                    <select name="unit_type" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Select a unit</option>
-                        <option value="piece">Piece</option>
-                        <option value="cup">Cup</option>
-                        <option value="tablespoon">Tablespoon</option>
-                        <option value="teaspoon">Teaspoon</option>
-                        <option value="ounce">Ounce</option>
-                        <option value="gram">Gram</option>
-                        <option value="slice">Slice</option>
-                        <option value="can">Can</option>
-                        <option value="bottle">Bottle</option>
-                        <option value="serving">Serving</option>
-                        <option value="other">Other</option>
                     </select>
                 </div>
-                <button type="submit"
-                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
-                    Add Food Metric
-                </button>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Quantity (Units)</label>
+                    <input type="number" name="ounces" step="0.01" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="md:col-span-3">
+                    <button type="submit"
+                        class="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors">
+                        Log Food Metric
+                    </button>
+                </div>
             </form>
-            <div id="addMealMsg" class="mt-4"></div>
+            <div id="logMealMsg" class="mt-4"></div>
         </div>
 
         <!-- Today's Foods Section -->
@@ -133,10 +123,8 @@
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">📊 Weight History</h2>
             <div class="mb-4">
-                <div class="flex gap-2 mb-4">
-                    <button id="prevWeekBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">← Previous</button>
-                    <span id="weightWeekLabel" class="px-3 py-1 font-semibold">This Week</span>
-                    <button id="nextWeekBtn" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Next →</button>
+                <div class="mb-4">
+                    <span id="weightWeekLabel" class="px-3 py-1 font-semibold">All Weight Entries</span>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full border">
@@ -152,7 +140,7 @@
             </div>
             <div class="mt-6">
                 <h3 class="font-semibold mb-2">Weight Trend</h3>
-                <canvas id="weightChart" width="400" height="200"></canvas>
+                <div id="weightChart"></div>
             </div>
         </div>
 
@@ -194,36 +182,6 @@
             <div id="bloodPressureHistory"></div>
         </div>
 
-        <!-- Log Food Metric Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">📝 Log Food Metric Eaten</h2>
-            <form id="logMealForm" class="grid gap-4 md:grid-cols-3">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                    <input type="date" name="date" id="logDate" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Food Metric</label>
-                    <select name="meal_id" id="mealSelect" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Quantity (Units)</label>
-                    <input type="number" name="ounces" step="0.01" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="md:col-span-3">
-                    <button type="submit"
-                        class="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors">
-                        Log Food Metric
-                    </button>
-                </div>
-            </form>
-            <div id="logMealMsg" class="mt-4"></div>
-        </div>
-
         <!-- Lookup Calories Section -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">🤖 AI Calorie Lookup</h2>
@@ -244,6 +202,46 @@
                 </button>
             </form>
             <div id="lookupResult" class="mt-4"></div>
+        </div>
+
+        <!-- Add New Food Metric Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">➕ Add New Food Metric</h2>
+            <form id="addMealForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Food Name</label>
+                    <input type="text" name="name" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Calories per Unit</label>
+                    <input type="number" name="calories_per_serving" step="0.01" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Unit Type</label>
+                    <select name="unit_type" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select a unit</option>
+                        <option value="piece">Piece</option>
+                        <option value="cup">Cup</option>
+                        <option value="tablespoon">Tablespoon</option>
+                        <option value="teaspoon">Teaspoon</option>
+                        <option value="ounce">Ounce</option>
+                        <option value="gram">Gram</option>
+                        <option value="slice">Slice</option>
+                        <option value="can">Can</option>
+                        <option value="bottle">Bottle</option>
+                        <option value="serving">Serving</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+                    Add Food Metric
+                </button>
+            </form>
+            <div id="addMealMsg" class="mt-4"></div>
         </div>
 
         <!-- Saved Food Metric Templates Section -->
@@ -291,5 +289,7 @@
 
     <script src="app.js"></script>
 </body>
+
+</html>
 
 </html>

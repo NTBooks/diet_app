@@ -66,16 +66,16 @@ document.getElementById('logMealForm').addEventListener('submit', async (e) => {
   // Get the selected meal details to calculate calories
   const mealSelect = document.getElementById('mealSelect');
   const selectedOption = mealSelect.options[mealSelect.selectedIndex];
-  const ounces = parseFloat(form.ounces.value);
+  const units = parseFloat(form.ounces.value);
 
-  if (!selectedOption || !ounces) {
+  if (!selectedOption || !units) {
     document.getElementById('logMealMsg').innerHTML = `
           <div class="bg-red-50 border border-red-200 rounded-lg p-4">
             <div class="flex items-center">
               <svg class="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span class="text-red-800 font-medium">Please select a meal and enter ounces</span>
+              <span class="text-red-800 font-medium">Please select a food metric and enter quantity</span>
             </div>
           </div>
         `;
@@ -84,9 +84,9 @@ document.getElementById('logMealForm').addEventListener('submit', async (e) => {
 
   // Extract meal name and calculate calories
   const mealName = selectedOption.textContent.split(' (')[0];
-  const caloriesPerServing = parseFloat(selectedOption.textContent.match(/\((\d+) cal/)[1]);
-  const ouncesPerServing = parseFloat(selectedOption.textContent.match(/(\d+(?:\.\d+)?)oz\)/)[1]);
-  const calories = Math.round((ounces * caloriesPerServing) / ouncesPerServing);
+  const caloriesPerServing = parseFloat(selectedOption.textContent.match(/\((\d+(?:\.\d+)?) cal/)[1]);
+  const ouncesPerServing = parseFloat(selectedOption.textContent.match(/cal\/(\d+(?:\.\d+)?) /)[1]);
+  const calories = Math.round((units * caloriesPerServing) / ouncesPerServing);
 
   const body = {
     meal_name: mealName,
@@ -108,7 +108,7 @@ document.getElementById('logMealForm').addEventListener('submit', async (e) => {
               <svg class="h-5 w-5 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span class="text-green-800 font-medium">Meal logged successfully!</span>
+              <span class="text-green-800 font-medium">Food metric logged successfully!</span>
             </div>
           </div>
         `;
@@ -121,7 +121,7 @@ document.getElementById('logMealForm').addEventListener('submit', async (e) => {
               <svg class="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span class="text-red-800 font-medium">Error logging meal: ${data.message}</span>
+              <span class="text-red-800 font-medium">Error logging food metric: ${data.message}</span>
             </div>
           </div>
         `;
@@ -755,7 +755,7 @@ async function loadSavedMeals() {
 
 // Delete meal template
 async function deleteMealTemplate(id, name) {
-  if (!confirm(`Are you sure you want to delete the meal template "${name}"?`)) {
+  if (!confirm(`Are you sure you want to delete the food metric template "${name}"?`)) {
     return;
   }
 
@@ -770,10 +770,10 @@ async function deleteMealTemplate(id, name) {
       updateMealSelect();
       alert('Success! ' + data.message);
     } else {
-      alert('Error deleting meal template: ' + data.message);
+      alert('Error deleting food metric template: ' + data.message);
     }
   } catch (error) {
-    alert('Error deleting meal template: ' + error.message);
+    alert('Error deleting food metric template: ' + error.message);
   }
 }
 
@@ -877,138 +877,287 @@ let currentWeightWeek = 0; // 0 = current week, -1 = previous week, etc.
 
 // Load recent weights with pagination (2 weeks)
 async function loadRecentWeights() {
-  const today = new Date();
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - (today.getDay() + (currentWeightWeek * 7)));
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 13); // 2 weeks (14 days)
-
-  const start = getLocalDate(weekStart);
-  const end = getLocalDate(weekEnd);
-
-  const res = await fetch(`/api/weight_log_range?start=${start}&end=${end}`);
+  // Show all weight entries instead of paginated 2-week periods
+  const res = await fetch('/api/weight_log_all');
   const data = await res.json();
   const tbody = document.getElementById('recentWeightsTbody');
 
-  if (data.status === 'success' && data.weights.length > 0) {
+  if (data.status === 'success' && data.weights && data.weights.length > 0) {
     tbody.innerHTML = data.weights.map(w => `<tr><td class='border px-2 py-1'>${w.date}</td><td class='border px-2 py-1'>${w.weight} lbs</td></tr>`).join('');
   } else {
-    tbody.innerHTML = `<tr><td colspan='2' class='text-gray-500 text-center'>No weights for this period</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan='2' class='text-gray-500 text-center'>No weight entries found</td></tr>`;
   }
 
-  // Update week label
+  // Update label to show total count
   updateWeightWeekLabel();
 }
 
-function updateWeightWeekLabel() {
-  const today = new Date();
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() - (today.getDay() + (currentWeightWeek * 7)));
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 13);
-
+async function updateWeightWeekLabel() {
+  // Get total count of weight entries
+  const res = await fetch('/api/weight_log_all');
+  const data = await res.json();
   const label = document.getElementById('weightWeekLabel');
-  if (currentWeightWeek === 0) {
-    label.textContent = 'This Week + Next Week';
-  } else if (currentWeightWeek === -1) {
-    label.textContent = 'Previous 2 Weeks';
+
+  if (data.status === 'success' && data.weights && data.weights.length > 0) {
+    label.textContent = `All Weight Entries (${data.weights.length} total)`;
   } else {
-    label.textContent = `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+    label.textContent = 'All Weight Entries (0 total)';
   }
 }
 
-// Weight navigation functions
+// Weight navigation functions (disabled since we show all entries)
 function goToPreviousWeightWeek() {
-  currentWeightWeek--;
-  loadRecentWeights();
-  loadWeightChart();
+  // No-op since we show all entries
 }
 
 function goToNextWeightWeek() {
-  currentWeightWeek++;
-  loadRecentWeights();
-  loadWeightChart();
+  // No-op since we show all entries
 }
 
 // Load weight chart with trend line
 async function loadWeightChart() {
   try {
-    const res = await fetch('/api/weight_log_all');
-    const data = await res.json();
+    console.log('Starting weight chart load...');
 
-    if (data.status === 'success' && data.weights.length > 0) {
-      const ctx = document.getElementById('weightChart').getContext('2d');
+    // Check if ApexCharts is loaded
+    if (typeof ApexCharts === 'undefined') {
+      console.error('ApexCharts not loaded, trying fallback...');
+      showSimpleWeightChart();
+      return;
+    }
+
+    // Additional check to ensure ApexCharts is properly initialized
+    if (typeof ApexCharts !== 'function') {
+      console.error('ApexCharts is not a constructor, trying fallback...');
+      showSimpleWeightChart();
+      return;
+    }
+
+    console.log('ApexCharts loaded successfully');
+
+    const res = await fetch('/api/weight_log_all');
+    console.log('API response received');
+
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status} ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    console.log('Data parsed:', data);
+
+    if (data.status === 'success' && data.weights && data.weights.length > 0) {
+      const chartElement = document.getElementById('weightChart');
+      if (!chartElement) {
+        console.error('Weight chart element not found');
+        return;
+      }
+
+      console.log('Creating ApexCharts with', data.weights.length, 'data points');
+
+      // Clear existing content
+      chartElement.innerHTML = '';
 
       // Destroy existing chart if it exists
-      if (window.weightChart) {
+      if (window.weightChart && typeof window.weightChart.destroy === 'function') {
         window.weightChart.destroy();
       }
 
       const weights = data.weights;
-      const labels = weights.map(w => w.date);
+      const dates = weights.map(w => w.date);
       const values = weights.map(w => w.weight);
 
       // Calculate trend line
       const trendLine = calculateTrendLine(weights);
 
-      window.weightChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: 'Weight',
-              data: values,
-              borderColor: 'rgb(59, 130, 246)',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              tension: 0.1,
-              pointRadius: 4,
-              pointBackgroundColor: 'rgb(59, 130, 246)'
-            },
-            {
-              label: 'Trend Line',
-              data: trendLine,
-              borderColor: 'rgb(239, 68, 68)',
-              backgroundColor: 'transparent',
-              borderDash: [5, 5],
-              tension: 0,
-              pointRadius: 0
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: false,
-              title: {
-                display: true,
-                text: 'Weight (lbs)'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Date'
-              }
-            }
+      const options = {
+        series: [
+          {
+            name: 'Weight',
+            data: values,
+            type: 'line'
           },
-          plugins: {
-            legend: {
-              display: true,
-              position: 'top'
+          {
+            name: 'Trend Line',
+            data: trendLine,
+            type: 'line'
+          }
+        ],
+        chart: {
+          height: 300,
+          type: 'line',
+          zoom: {
+            enabled: true
+          },
+          toolbar: {
+            show: true,
+            tools: {
+              download: true,
+              selection: true,
+              zoom: true,
+              zoomin: true,
+              zoomout: true,
+              pan: true,
+              reset: true
             }
           }
+        },
+        colors: ['#3B82F6', '#EF4444'],
+        dataLabels: {
+          enabled: false
+        },
+        stroke: {
+          curve: 'smooth',
+          width: [4, 3],
+          dashArray: [0, 5]
+        },
+        fill: {
+          type: 'solid',
+          opacity: 0.8
+        },
+        markers: {
+          size: 4,
+          colors: ['#3B82F6'],
+          strokeColors: '#fff',
+          strokeWidth: 2,
+          hover: {
+            size: 6
+          }
+        },
+        xaxis: {
+          categories: dates,
+          title: {
+            text: 'Date'
+          }
+        },
+        yaxis: {
+          title: {
+            text: 'Weight (lbs)'
+          },
+          labels: {
+            formatter: function (value) {
+              return value + ' lbs';
+            }
+          }
+        },
+        tooltip: {
+          y: {
+            formatter: function (value) {
+              return value + ' lbs';
+            }
+          }
+        },
+        legend: {
+          position: 'top'
+        },
+        grid: {
+          borderColor: '#e7e7e7',
+          row: {
+            colors: ['#f3f3f3', 'transparent'],
+            opacity: 0.5
+          }
         }
-      });
+      };
+
+      try {
+        window.weightChart = new ApexCharts(chartElement, options);
+        window.weightChart.render();
+        console.log('ApexCharts rendered successfully');
+      } catch (chartError) {
+        console.error('Error creating ApexCharts:', chartError);
+        // Fall back to simple chart
+        showSimpleWeightChart();
+      }
+    } else {
+      console.log('No weight data available');
+      showNoDataMessage();
     }
   } catch (error) {
     console.error('Error loading weight chart:', error);
+    showErrorMessage(error.message);
+  }
+}
+
+// Fallback simple chart using HTML/CSS
+function showSimpleWeightChart() {
+  try {
+    const chartElement = document.getElementById('weightChart');
+    if (!chartElement) return;
+
+    fetch('/api/weight_log_all')
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.weights && data.weights.length > 0) {
+          const weights = data.weights;
+          const maxWeight = Math.max(...weights.map(w => w.weight));
+          const minWeight = Math.min(...weights.map(w => w.weight));
+          const range = maxWeight - minWeight;
+
+          const chartHTML = `
+            <div class="bg-white p-4 rounded-lg border">
+              <h4 class="text-lg font-semibold mb-4">Weight Trend (Simple View)</h4>
+              <div class="space-y-2">
+                ${weights.map((weight, index) => {
+            const height = range > 0 ? ((weight.weight - minWeight) / range) * 200 + 20 : 20;
+            return `
+                    <div class="flex items-center space-x-2">
+                      <span class="text-sm text-gray-600 w-20">${weight.date}</span>
+                      <div class="flex-1 bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: ${(weight.weight - minWeight) / range * 100}%"></div>
+                      </div>
+                      <span class="text-sm font-medium w-16">${weight.weight} lbs</span>
+                    </div>
+                  `;
+          }).join('')}
+              </div>
+            </div>
+          `;
+
+          chartElement.innerHTML = chartHTML;
+        } else {
+          showNoDataMessage();
+        }
+      })
+      .catch(error => {
+        console.error('Error in simple chart:', error);
+        showErrorMessage(error.message);
+      });
+  } catch (error) {
+    console.error('Error in showSimpleWeightChart:', error);
+    showErrorMessage(error.message);
+  }
+}
+
+function showNoDataMessage() {
+  const chartElement = document.getElementById('weightChart');
+  if (chartElement) {
+    chartElement.innerHTML = `
+      <div class="flex items-center justify-center h-64 text-gray-500">
+        <div class="text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <p class="mt-2 text-sm">No weight data available</p>
+          <p class="text-xs text-gray-400 mt-1">Add some weight entries to see your trend</p>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function showErrorMessage(errorMsg) {
+  const chartElement = document.getElementById('weightChart');
+  if (chartElement) {
+    chartElement.innerHTML = `
+      <div class="flex items-center justify-center h-64 text-red-500">
+        <div class="text-center">
+          <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="mt-2 text-sm">Error loading chart</p>
+          <p class="text-xs text-red-400 mt-1">${errorMsg}</p>
+        </div>
+      </div>
+    `;
   }
 }
 

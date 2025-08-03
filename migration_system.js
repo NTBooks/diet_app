@@ -101,17 +101,15 @@ class DatabaseMigration {
         const backupPath = `${this.dbPath}.backup.${timestamp}`;
 
         return new Promise((resolve, reject) => {
-            const backupDb = new sqlite3.Database(backupPath);
-
-            this.db.backup(backupDb, (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    console.log(`Database backup created: ${backupPath}`);
-                    backupDb.close();
-                    resolve(backupPath);
-                }
-            });
+            // Use file system copy instead of SQLite backup
+            const fs = require('fs');
+            try {
+                fs.copyFileSync(this.dbPath, backupPath);
+                console.log(`Database backup created: ${backupPath}`);
+                resolve(backupPath);
+            } catch (err) {
+                reject(err);
+            }
         });
     }
 
