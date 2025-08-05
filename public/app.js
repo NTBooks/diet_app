@@ -316,6 +316,31 @@ function getLocalDate(date) {
   return `${year}-${month}-${day}`;
 }
 
+// Helper function to convert UTC timestamp to local date string
+function getLocalDateFromUTC(timestamp) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper function to expand date range for timezone differences
+function getExpandedDateRange(startDate, endDate) {
+  // Expand the date range by one day on each end to ensure we capture
+  // readings that might be in different timezones
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  start.setDate(start.getDate() - 1);
+  end.setDate(end.getDate() + 1);
+
+  return {
+    start: getLocalDate(start),
+    end: getLocalDate(end)
+  };
+}
+
 function setTodayForLogDate() {
   const logDateInput = document.getElementById('logDate');
   const quickAddDateInput = document.getElementById('quickAddDate');
@@ -617,8 +642,6 @@ async function loadCalendar() {
   });
 }
 
-document.getElementById('loadCalendar').addEventListener('click', loadCalendar);
-
 // Blood Pressure form handler
 document.getElementById('bloodPressureForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -914,61 +937,46 @@ function goToNextWeightWeek() {
   // No-op since we show all entries
 }
 
-// Load weight chart with trend line
+// Load weight chart with trend line, blood pressure, and calories
 async function loadWeightChart() {
   try {
     console.log('Starting weight chart load...');
-
-    // Check if ApexCharts is loaded
     if (typeof ApexCharts === 'undefined') {
       console.error('ApexCharts not loaded, trying fallback...');
       showSimpleWeightChart();
       return;
     }
-
-    // Additional check to ensure ApexCharts is properly initialized
     if (typeof ApexCharts !== 'function') {
       console.error('ApexCharts is not a constructor, trying fallback...');
       showSimpleWeightChart();
       return;
     }
-
     console.log('ApexCharts loaded successfully');
-
     const res = await fetch('/api/weight_log_all');
     console.log('API response received');
-
     if (!res.ok) {
       throw new Error(`API error: ${res.status} ${res.statusText}`);
     }
-
     const data = await res.json();
     console.log('Data parsed:', data);
-
     if (data.status === 'success' && data.weights && data.weights.length > 0) {
       const chartElement = document.getElementById('weightChart');
       if (!chartElement) {
         console.error('Weight chart element not found');
         return;
       }
-
       console.log('Creating ApexCharts with', data.weights.length, 'data points');
-
       // Clear existing content
       chartElement.innerHTML = '';
-
       // Destroy existing chart if it exists
       if (window.weightChart && typeof window.weightChart.destroy === 'function') {
         window.weightChart.destroy();
       }
-
       const weights = data.weights;
       const dates = weights.map(w => w.date);
       const values = weights.map(w => w.weight);
-
       // Calculate trend line
       const trendLine = calculateTrendLine(weights);
-
       const options = {
         series: [
           {
@@ -1057,14 +1065,12 @@ async function loadWeightChart() {
           }
         }
       };
-
       try {
         window.weightChart = new ApexCharts(chartElement, options);
         window.weightChart.render();
         console.log('ApexCharts rendered successfully');
       } catch (chartError) {
         console.error('Error creating ApexCharts:', chartError);
-        // Fall back to simple chart
         showSimpleWeightChart();
       }
     } else {
@@ -1095,7 +1101,7 @@ function showSimpleWeightChart() {
           const chartHTML = `
             <div class="bg-white p-4 rounded-lg border">
               <h4 class="text-lg font-semibold mb-4">Weight Trend (Simple View)</h4>
-              <div class="space-y-2">
+              <div class="space-y-3">
                 ${weights.map((weight, index) => {
             const height = range > 0 ? ((weight.weight - minWeight) / range) * 200 + 20 : 20;
             return `
@@ -1312,7 +1318,364 @@ function stopMidnightCheckTimer() {
   }
 }
 
+// Load blood pressure chart
+async function loadBloodPressureChart() {
+  try {
+    console.log('Starting blood pressure chart load...');
+    if (typeof ApexCharts === 'undefined') {
+      console.error('ApexCharts not loaded for BP chart');
+      return;
+    }
+
+    console.log('Fetching from /api/blood_pressure_all...');
+    const res = await fetch('/api/blood_pressure_all');
+    console.log('Response status:', res.status, res.statusText);
+
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status} ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    console.log('BP data parsed:', data);
+    console.log('Data status:', data.status);
+    console.log('Readings length:', data.readings ? data.readings.length : 'undefined');
+    if (data.readings && data.readings.length > 0) {
+      console.log('First reading:', data.readings[0]);
+    }
+
+    if (data.status === 'success' && data.readings && data.readings.length > 0) {
+      const chartElement = document.getElementById('bloodPressureChart');
+      if (!chartElement) {
+        console.error('Blood pressure chart element not found');
+        return;
+      }
+
+      // Clear existing content
+      chartElement.innerHTML = '';
+
+      // Destroy existing chart if it exists
+      if (window.bpChart && typeof window.bpChart.destroy === 'function') {
+        window.bpChart.destroy();
+      }
+
+      const readings = data.readings;
+      console.log('Processing readings:', readings);
+
+      const dates = readings.map(r => {
+        const date = new Date(r.timestamp);
+        const formattedDate = date.toLocaleDateString();
+        console.log('Converting timestamp:', r.timestamp, 'to date:', formattedDate);
+        return formattedDate;
+      });
+      const systolic = readings.map(r => r.systolic);
+      const diastolic = readings.map(r => r.diastolic);
+
+      console.log('Processed dates:', dates);
+      console.log('Processed systolic:', systolic);
+      console.log('Processed diastolic:', diastolic);
+
+      const options = {
+        series: [
+          {
+            name: 'Systolic',
+            data: systolic,
+            type: 'line'
+          },
+          {
+            name: 'Diastolic',
+            data: diastolic,
+            type: 'line'
+          }
+        ],
+        chart: {
+          height: 300,
+          type: 'line',
+          zoom: {
+            enabled: true
+          },
+          toolbar: {
+            show: true,
+            tools: {
+              download: true,
+              selection: true,
+              zoom: true,
+              zoomin: true,
+              zoomout: true,
+              pan: true,
+              reset: true
+            }
+          }
+        },
+        colors: ['#EF4444', '#3B82F6'],
+        dataLabels: {
+          enabled: false
+        },
+        stroke: {
+          curve: 'smooth',
+          width: [3, 3]
+        },
+        fill: {
+          type: 'solid',
+          opacity: 0.8
+        },
+        markers: {
+          size: 4,
+          colors: ['#EF4444', '#3B82F6'],
+          strokeColors: '#fff',
+          strokeWidth: 2,
+          hover: {
+            size: 6
+          }
+        },
+        xaxis: {
+          categories: dates,
+          title: {
+            text: 'Date'
+          }
+        },
+        yaxis: {
+          title: {
+            text: 'Blood Pressure (mmHg)'
+          },
+          labels: {
+            formatter: function (value) {
+              return value + ' mmHg';
+            }
+          },
+          min: 0,
+          max: 200
+        },
+        tooltip: {
+          y: {
+            formatter: function (value) {
+              return value + ' mmHg';
+            }
+          }
+        },
+        legend: {
+          position: 'top'
+        },
+        grid: {
+          borderColor: '#e7e7e7',
+          row: {
+            colors: ['#f3f3f3', 'transparent'],
+            opacity: 0.5
+          }
+        }
+      };
+
+      try {
+        console.log('Creating ApexCharts with options:', options);
+        window.bpChart = new ApexCharts(chartElement, options);
+        console.log('Chart object created, rendering...');
+        window.bpChart.render();
+        console.log('Blood pressure chart rendered successfully');
+      } catch (chartError) {
+        console.error('Error creating blood pressure chart:', chartError);
+        chartElement.innerHTML = '<div class="text-red-500 text-center py-4">Error creating blood pressure chart</div>';
+      }
+    } else {
+      const chartElement = document.getElementById('bloodPressureChart');
+      if (chartElement) {
+        chartElement.innerHTML = `
+          <div class="flex items-center justify-center h-64 text-gray-500">
+            <div class="text-center">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <p class="mt-2 text-sm">No blood pressure data available</p>
+              <p class="text-xs text-gray-400 mt-1">Add some blood pressure readings to see your trend</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+  } catch (error) {
+    console.error('Error loading blood pressure chart:', error);
+    const chartElement = document.getElementById('bloodPressureChart');
+    if (chartElement) {
+      chartElement.innerHTML = `
+        <div class="flex items-center justify-center h-64 text-red-500">
+          <div class="text-center">
+            <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="mt-2 text-sm">Error loading blood pressure chart</p>
+            <p class="text-xs text-red-400 mt-1">${error.message}</p>
+          </div>
+        </div>
+      `;
+    }
+  }
+}
+
+// Load calories chart
+async function loadCaloriesChart() {
+  try {
+    console.log('Starting calories chart load...');
+    if (typeof ApexCharts === 'undefined') {
+      console.error('ApexCharts not loaded for calories chart');
+      return;
+    }
+
+    const res = await fetch('/api/calories_all');
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status} ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    console.log('Calories data parsed:', data);
+
+    if (data.status === 'success' && data.data && data.data.length > 0) {
+      const chartElement = document.getElementById('caloriesChart');
+      if (!chartElement) {
+        console.error('Calories chart element not found');
+        return;
+      }
+
+      // Clear existing content
+      chartElement.innerHTML = '';
+
+      // Destroy existing chart if it exists
+      if (window.caloriesChart && typeof window.caloriesChart.destroy === 'function') {
+        window.caloriesChart.destroy();
+      }
+
+      const caloriesData = data.data;
+      const dates = caloriesData.map(c => c.date);
+      const calories = caloriesData.map(c => c.total_calories);
+
+      const options = {
+        series: [
+          {
+            name: 'Daily Calories',
+            data: calories,
+            type: 'column'
+          }
+        ],
+        chart: {
+          height: 300,
+          type: 'bar',
+          zoom: {
+            enabled: true
+          },
+          toolbar: {
+            show: true,
+            tools: {
+              download: true,
+              selection: true,
+              zoom: true,
+              zoomin: true,
+              zoomout: true,
+              pan: true,
+              reset: true
+            }
+          }
+        },
+        colors: ['#8B5CF6'],
+        dataLabels: {
+          enabled: true,
+          formatter: function (val) {
+            return Math.round(val);
+          },
+          style: {
+            fontSize: '10px',
+            colors: ['#8B5CF6']
+          }
+        },
+        stroke: {
+          curve: 'smooth',
+          width: 0
+        },
+        fill: {
+          type: 'solid',
+          opacity: 0.8
+        },
+        markers: {
+          size: 0
+        },
+        xaxis: {
+          categories: dates,
+          title: {
+            text: 'Date'
+          }
+        },
+        yaxis: {
+          title: {
+            text: 'Calories'
+          },
+          labels: {
+            formatter: function (value) {
+              return value + ' cal';
+            }
+          },
+          min: 1200,
+          max: 2500
+        },
+        tooltip: {
+          y: {
+            formatter: function (value) {
+              return value + ' cal';
+            }
+          }
+        },
+        legend: {
+          position: 'top'
+        },
+        grid: {
+          borderColor: '#e7e7e7',
+          row: {
+            colors: ['#f3f3f3', 'transparent'],
+            opacity: 0.5
+          }
+        }
+      };
+
+      try {
+        window.caloriesChart = new ApexCharts(chartElement, options);
+        window.caloriesChart.render();
+        console.log('Calories chart rendered successfully');
+      } catch (chartError) {
+        console.error('Error creating calories chart:', chartError);
+        chartElement.innerHTML = '<div class="text-red-500 text-center py-4">Error creating calories chart</div>';
+      }
+    } else {
+      const chartElement = document.getElementById('caloriesChart');
+      if (chartElement) {
+        chartElement.innerHTML = `
+          <div class="flex items-center justify-center h-64 text-gray-500">
+            <div class="text-center">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <p class="mt-2 text-sm">No calories data available</p>
+              <p class="text-xs text-gray-400 mt-1">Add some meal logs to see your daily calories</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+  } catch (error) {
+    console.error('Error loading calories chart:', error);
+    const chartElement = document.getElementById('caloriesChart');
+    if (chartElement) {
+      chartElement.innerHTML = `
+        <div class="flex items-center justify-center h-64 text-red-500">
+          <div class="text-center">
+            <svg class="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="mt-2 text-sm">Error loading calories chart</p>
+            <p class="text-xs text-red-400 mt-1">${error.message}</p>
+          </div>
+        </div>
+      `;
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOMContentLoaded event fired');
   updateMealSelect();
   setTodayForLogDate();
   renderTodayMeals();
@@ -1323,26 +1686,406 @@ document.addEventListener('DOMContentLoaded', () => {
   const today = new Date();
   const weekAgo = new Date();
   weekAgo.setDate(today.getDate() - 6);
-  document.getElementById('calendarEnd').value = getLocalDate(today);
-  document.getElementById('calendarStart').value = getLocalDate(weekAgo);
+  const calendarEnd = document.getElementById('calendarEnd');
+  const calendarStart = document.getElementById('calendarStart');
+  if (calendarEnd) {
+    calendarEnd.value = getLocalDate(today);
+  }
+  if (calendarStart) {
+    calendarStart.value = getLocalDate(weekAgo);
+  }
 
   if (document.getElementById('weightLogForm')) {
     // Set today as default date
-    document.getElementById('weightLogDate').value = getTodayLocalDate();
+    const weightLogDate = document.getElementById('weightLogDate');
+    if (weightLogDate) {
+      weightLogDate.value = getTodayLocalDate();
+    }
     loadTodayWeight();
     loadRecentWeights();
     loadWeightChart();
 
-    // Add event listeners for weight navigation
-    document.getElementById('prevWeekBtn').addEventListener('click', goToPreviousWeightWeek);
-    document.getElementById('nextWeekBtn').addEventListener('click', goToNextWeightWeek);
+    // Add event listeners for weight navigation (with null checks)
+    const prevWeekBtn = document.getElementById('prevWeekBtn');
+    const nextWeekBtn = document.getElementById('nextWeekBtn');
+
+    if (prevWeekBtn) {
+      prevWeekBtn.addEventListener('click', goToPreviousWeightWeek);
+    }
+    if (nextWeekBtn) {
+      nextWeekBtn.addEventListener('click', goToNextWeightWeek);
+    }
   }
 
   // Start the midnight checking timer
   startMidnightCheckTimer();
+
+  // Load charts
+  console.log('About to load blood pressure chart...');
+  loadBloodPressureChart();
+  console.log('About to load calories chart...');
+  loadCaloriesChart();
+
+  // Add event listeners for report functionality
+  const generateReportBtn = document.getElementById('generateReport');
+  const printReportBtn = document.getElementById('printReport');
+  const downloadReportBtn = document.getElementById('downloadReport');
+
+  if (generateReportBtn) {
+    generateReportBtn.addEventListener('click', generateDoctorsReport);
+  }
+
+  if (printReportBtn) {
+    printReportBtn.addEventListener('click', printReport);
+  }
+
+  if (downloadReportBtn) {
+    downloadReportBtn.addEventListener('click', downloadReport);
+  }
+
+  // Add calendar load button event listener
+  const loadCalendarBtn = document.getElementById('loadCalendar');
+  if (loadCalendarBtn) {
+    loadCalendarBtn.addEventListener('click', loadCalendar);
+  }
 });
 
 // Clean up timer when page is unloaded
 window.addEventListener('beforeunload', () => {
   stopMidnightCheckTimer();
-}); 
+});
+
+// ===== DOCTOR'S REPORT FUNCTIONALITY =====
+
+// Generate comprehensive report for doctor
+async function generateDoctorsReport() {
+  try {
+    const reportContainer = document.getElementById('reportContainer');
+    const reportContent = document.getElementById('reportContent');
+
+    // Show loading state
+    reportContent.innerHTML = `
+      <div class="flex items-center justify-center py-8">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span class="ml-2 text-gray-600">Generating report...</span>
+      </div>
+    `;
+    reportContainer.classList.remove('hidden');
+
+    // Calculate date range (last 14 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 13); // 14 days total including today
+
+    const startDateStr = getLocalDate(startDate);
+    const endDateStr = getLocalDate(endDate);
+
+    // Get expanded date range for blood pressure to account for timezone differences
+    const expandedRange = getExpandedDateRange(startDateStr, endDateStr);
+
+    // Fetch all data for the date range
+    const [caloriesData, weightData, bloodPressureData] = await Promise.all([
+      fetch(`/api/calories_range?start=${startDateStr}&end=${endDateStr}`).then(r => r.json()),
+      fetch(`/api/weight_log_range?start=${startDateStr}&end=${endDateStr}`).then(r => r.json()),
+      fetch(`/api/blood_pressure_range?start=${expandedRange.start}&end=${expandedRange.end}`).then(r => r.json())
+    ]);
+
+    // Generate the report HTML
+    const reportHTML = generateReportHTML(startDateStr, endDateStr, caloriesData, weightData, bloodPressureData);
+
+    reportContent.innerHTML = reportHTML;
+
+  } catch (error) {
+    console.error('Error generating report:', error);
+    document.getElementById('reportContent').innerHTML = `
+      <div class="text-red-500 text-center py-4">
+        <svg class="mx-auto h-12 w-12 text-red-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p class="text-lg font-semibold">Error generating report</p>
+        <p class="text-sm text-red-400 mt-2">${error.message}</p>
+      </div>
+    `;
+  }
+}
+
+// Generate the HTML content for the report
+function generateReportHTML(startDate, endDate, caloriesData, weightData, bloodPressureData) {
+  const today = new Date();
+  const reportDate = today.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  // Process calories data
+  const caloriesMap = {};
+  if (caloriesData.status === 'success' && caloriesData.data) {
+    caloriesData.data.forEach(day => {
+      caloriesMap[day.date] = day.total_calories;
+    });
+  }
+
+  // Process weight data
+  const weightMap = {};
+  if (weightData.status === 'success' && weightData.weights) {
+    weightData.weights.forEach(day => {
+      weightMap[day.date] = day.weight;
+    });
+  }
+
+  // Process blood pressure data
+  const bpReadings = [];
+  if (bloodPressureData.status === 'success' && bloodPressureData.readings) {
+    bloodPressureData.readings.forEach(reading => {
+      const date = getLocalDateFromUTC(reading.timestamp);
+      bpReadings.push({
+        date: date,
+        systolic: reading.systolic,
+        diastolic: reading.diastolic,
+        timestamp: reading.timestamp
+      });
+    });
+  }
+
+  // Generate daily entries for the full 14-day period
+  const dailyEntries = [];
+  const currentDate = new Date(startDate);
+  const endDateObj = new Date(endDate);
+
+  while (currentDate <= endDateObj) {
+    const dateStr = getLocalDate(currentDate);
+    const displayDate = currentDate.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+
+    dailyEntries.push({
+      date: dateStr,
+      displayDate: displayDate,
+      calories: caloriesMap[dateStr] || 0,
+      weight: weightMap[dateStr] || null,
+      bloodPressure: bpReadings.filter(bp => bp.date === dateStr)
+    });
+
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  // Calculate summary statistics
+  const totalCalories = dailyEntries.reduce((sum, day) => sum + day.calories, 0);
+  const avgCalories = totalCalories / dailyEntries.length;
+  const daysWithData = dailyEntries.filter(day => day.calories > 0).length;
+
+  const weights = dailyEntries.filter(day => day.weight !== null).map(day => day.weight);
+  const avgWeight = weights.length > 0 ? weights.reduce((sum, w) => sum + w, 0) / weights.length : null;
+  const minWeight = weights.length > 0 ? Math.min(...weights) : null;
+  const maxWeight = weights.length > 0 ? Math.max(...weights) : null;
+
+  const totalBPReadings = bpReadings.length;
+  const avgSystolic = bpReadings.length > 0 ?
+    bpReadings.reduce((sum, bp) => sum + bp.systolic, 0) / bpReadings.length : null;
+  const avgDiastolic = bpReadings.length > 0 ?
+    bpReadings.reduce((sum, bp) => sum + bp.diastolic, 0) / bpReadings.length : null;
+
+  return `
+    <div class="report-content" style="font-family: 'Times New Roman', serif; line-height: 1.6;">
+      <!-- Header -->
+      <div class="text-center mb-8 border-b-2 border-gray-300 pb-4">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Health Data Report</h1>
+        <p class="text-lg text-gray-600">Period: ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}</p>
+        <p class="text-sm text-gray-500">Generated on: ${reportDate}</p>
+      </div>
+
+      <!-- Summary Section -->
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b border-gray-300 pb-2">Summary</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h3 class="font-semibold text-blue-800 mb-2">Calories</h3>
+            <p class="text-2xl font-bold text-blue-600">${Math.round(avgCalories)}</p>
+            <p class="text-sm text-blue-600">Average daily calories</p>
+            <p class="text-xs text-blue-500 mt-1">${daysWithData} days with data</p>
+          </div>
+          ${avgWeight ? `
+          <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+            <h3 class="font-semibold text-green-800 mb-2">Weight</h3>
+            <p class="text-2xl font-bold text-green-600">${avgWeight.toFixed(1)} lbs</p>
+            <p class="text-sm text-green-600">Average weight</p>
+            <p class="text-xs text-green-500 mt-1">Range: ${minWeight.toFixed(1)} - ${maxWeight.toFixed(1)} lbs</p>
+          </div>
+          ` : `
+          <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h3 class="font-semibold text-gray-800 mb-2">Weight</h3>
+            <p class="text-lg text-gray-600">No data</p>
+          </div>
+          `}
+          ${totalBPReadings > 0 ? `
+          <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+            <h3 class="font-semibold text-red-800 mb-2">Blood Pressure</h3>
+            <p class="text-2xl font-bold text-red-600">${Math.round(avgSystolic)}/${Math.round(avgDiastolic)}</p>
+            <p class="text-sm text-red-600">Average BP</p>
+            <p class="text-xs text-red-500 mt-1">${totalBPReadings} readings</p>
+          </div>
+          ` : `
+          <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h3 class="font-semibold text-gray-800 mb-2">Blood Pressure</h3>
+            <p class="text-lg text-gray-600">No data</p>
+          </div>
+          `}
+        </div>
+      </div>
+
+      <!-- Daily Data Table -->
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b border-gray-300 pb-2">Daily Data</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border border-gray-300">
+            <thead>
+              <tr class="bg-gray-100">
+                <th class="border border-gray-300 px-3 py-2 text-left font-semibold">Date</th>
+                <th class="border border-gray-300 px-3 py-2 text-center font-semibold">Calories</th>
+                <th class="border border-gray-300 px-3 py-2 text-center font-semibold">Weight (lbs)</th>
+                <th class="border border-gray-300 px-3 py-2 text-center font-semibold">Blood Pressure</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dailyEntries.map(day => `
+                <tr class="hover:bg-gray-50">
+                  <td class="border border-gray-300 px-3 py-2 font-medium">${day.displayDate}</td>
+                  <td class="border border-gray-300 px-3 py-2 text-center">${day.calories > 0 ? day.calories : '-'}</td>
+                  <td class="border border-gray-300 px-3 py-2 text-center">${day.weight ? day.weight.toFixed(1) : '-'}</td>
+                  <td class="border border-gray-300 px-3 py-2 text-center">
+                    ${day.bloodPressure.length > 0 ?
+      day.bloodPressure.map(bp => `${bp.systolic}/${bp.diastolic}`).join(', ') :
+      '-'
+    }
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Blood Pressure Details -->
+      ${totalBPReadings > 0 ? `
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b border-gray-300 pb-2">Blood Pressure Readings</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse border border-gray-300">
+            <thead>
+              <tr class="bg-gray-100">
+                <th class="border border-gray-300 px-3 py-2 text-left font-semibold">Date</th>
+                <th class="border border-gray-300 px-3 py-2 text-center font-semibold">Time</th>
+                <th class="border border-gray-300 px-3 py-2 text-center font-semibold">Systolic</th>
+                <th class="border border-gray-300 px-3 py-2 text-center font-semibold">Diastolic</th>
+                <th class="border border-gray-300 px-3 py-2 text-center font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${bpReadings.map(reading => {
+      const bpDate = new Date(reading.timestamp);
+      const timeStr = bpDate.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const dateStr = bpDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+
+      // Determine BP status
+      let status = 'Normal';
+      let statusClass = 'text-green-600';
+      if (reading.systolic >= 140 || reading.diastolic >= 90) {
+        status = 'High';
+        statusClass = 'text-red-600';
+      } else if (reading.systolic < 90 || reading.diastolic < 60) {
+        status = 'Low';
+        statusClass = 'text-blue-600';
+      }
+
+      return `
+                  <tr class="hover:bg-gray-50">
+                    <td class="border border-gray-300 px-3 py-2">${dateStr}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center">${timeStr}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center">${reading.systolic}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center">${reading.diastolic}</td>
+                    <td class="border border-gray-300 px-3 py-2 text-center ${statusClass} font-medium">${status}</td>
+                  </tr>
+                `;
+    }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ` : ''}
+
+      <!-- Notes Section -->
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b border-gray-300 pb-2">Notes</h2>
+        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <p class="text-sm text-gray-700">
+            <strong>Data Coverage:</strong> This report covers ${daysWithData} out of 14 days with calorie data. 
+            ${weights.length > 0 ? `Weight data available for ${weights.length} days.` : 'No weight data available.'}
+            ${totalBPReadings > 0 ? `${totalBPReadings} blood pressure readings recorded.` : 'No blood pressure data available.'}
+          </p>
+          <p class="text-sm text-gray-700 mt-2">
+            <strong>Recommendations:</strong> Please consult with your healthcare provider to interpret these results 
+            and discuss any concerns about your health data.
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="text-center text-sm text-gray-500 border-t border-gray-300 pt-4">
+        <p>This report was generated automatically by the Diet App</p>
+        <p>For medical advice, please consult with your healthcare provider</p>
+      </div>
+    </div>
+  `;
+}
+
+// Print report function
+function printReport() {
+  const reportContent = document.getElementById('reportContent');
+  const printWindow = window.open('', '_blank');
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Health Data Report</title>
+      <style>
+        body { font-family: 'Times New Roman', serif; margin: 20px; line-height: 1.6; }
+        .report-content { max-width: 800px; margin: 0 auto; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f5f5f5; font-weight: bold; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }
+        .summary-card { border: 1px solid #ccc; padding: 15px; border-radius: 5px; }
+        @media print {
+          body { margin: 0; }
+          .no-print { display: none; }
+        }
+      </style>
+    </head>
+    <body>
+      ${reportContent.innerHTML}
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
+// Download PDF function (basic implementation)
+function downloadReport() {
+  // For now, we'll use the browser's print to PDF functionality
+  // In a production app, you might want to use a library like jsPDF or html2pdf
+  printReport();
+}

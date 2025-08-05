@@ -230,6 +230,56 @@ app.get('/api/calories_range', (req, res) => {
     });
 });
 
+// Get all calories data for trend analysis
+app.get('/api/calories_all', (req, res) => {
+    // Get calories from regular meals
+    const mealSql = `
+    SELECT date, SUM(calories) as meal_calories
+    FROM meal_log
+    GROUP BY date
+  `;
+
+    // Get calories from quick add items
+    const quickAddSql = `
+    SELECT date, SUM(calories) as quick_add_calories
+    FROM quick_add_log
+    GROUP BY date
+  `;
+
+    db.all(mealSql, [], (err, mealRows) => {
+        if (err) {
+            return res.status(500).json({ status: 'error', message: 'Database error' });
+        }
+
+        db.all(quickAddSql, [], (err2, quickAddRows) => {
+            if (err2) {
+                return res.status(500).json({ status: 'error', message: 'Database error' });
+            }
+
+            // Create a map of dates to calories
+            const calorieMap = {};
+
+            // Add meal calories
+            mealRows.forEach(row => {
+                calorieMap[row.date] = (calorieMap[row.date] || 0) + (row.meal_calories || 0);
+            });
+
+            // Add quick add calories
+            quickAddRows.forEach(row => {
+                calorieMap[row.date] = (calorieMap[row.date] || 0) + (row.quick_add_calories || 0);
+            });
+
+            // Convert to array format
+            const result = Object.keys(calorieMap).map(date => ({
+                date: date,
+                total_calories: calorieMap[date]
+            })).sort((a, b) => a.date.localeCompare(b.date));
+
+            res.json({ status: 'success', data: result });
+        });
+    });
+});
+
 // Lookup calories using Ollama
 app.post('/api/lookup_calories', async (req, res) => {
     const foodName = sanitize(req.body.foodName);
@@ -461,6 +511,16 @@ app.get('/api/blood_pressure_latest', (req, res) => {
             return res.status(500).json({ status: 'error', message: 'Database error' });
         }
         res.json({ status: 'success', reading: row });
+    });
+});
+
+// Get all blood pressure data for trend analysis
+app.get('/api/blood_pressure_all', (req, res) => {
+    db.all('SELECT id, systolic, diastolic, timestamp FROM blood_pressure_log ORDER BY timestamp ASC', [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ status: 'error', message: 'Database error' });
+        }
+        res.json({ status: 'success', readings: rows });
     });
 });
 
