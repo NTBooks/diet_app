@@ -19,7 +19,7 @@ function createWindow() {
     });
 
     // Load the app
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL('http://localhost:3005');
 
     // Open DevTools in development
     if (process.env.NODE_ENV === 'development') {
@@ -39,7 +39,7 @@ function startServer() {
 
         serverProcess.stdout.on('data', (data) => {
             console.log(`Server: ${data}`);
-            if (data.toString().includes('Server running on http://localhost:3000')) {
+            if (data.toString().includes('Server running on http://localhost:3005')) {
                 resolve();
             }
         });

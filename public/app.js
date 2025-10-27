@@ -876,6 +876,7 @@ if (weightForm) {
       document.getElementById('weightLogMsg').innerHTML = `<div class="text-green-700">Weight logged!</div>`;
       loadTodayWeight();
       loadRecentWeights();
+      loadWeightChart();
     } else {
       document.getElementById('weightLogMsg').innerHTML = `<div class="text-red-600">${data.message}</div>`;
     }
@@ -973,26 +974,31 @@ async function loadWeightChart() {
         window.weightChart.destroy();
       }
       const weights = data.weights;
-      const dates = weights.map(w => w.date);
-      const values = weights.map(w => w.weight);
-      // Calculate trend line
-      const trendLine = calculateTrendLine(weights);
+      // Sort weights by date to guarantee consistent ordering
+      const sortedWeights = [...weights].sort((a, b) => new Date(a.date) - new Date(b.date));
+      // Build time-series points so x-axis accounts for missed days
+      const points = sortedWeights
+        .map(w => ({ x: new Date(w.date + 'T00:00:00').getTime(), y: w.weight }));
+      // Calculate trend line values aligned to existing points
+      const trendLineValues = calculateTrendLine(sortedWeights);
+      const trendPoints = points.map((p, i) => ({ x: p.x, y: trendLineValues[i] }));
       const options = {
         series: [
           {
             name: 'Weight',
-            data: values,
+            data: points,
             type: 'line'
           },
           {
             name: 'Trend Line',
-            data: trendLine,
+            data: trendPoints,
             type: 'line'
           }
         ],
         chart: {
           height: 300,
           type: 'line',
+          animations: { enabled: false },
           zoom: {
             enabled: true
           },
@@ -1014,7 +1020,7 @@ async function loadWeightChart() {
           enabled: false
         },
         stroke: {
-          curve: 'smooth',
+          curve: 'straight',
           width: [4, 3],
           dashArray: [0, 5]
         },
@@ -1032,7 +1038,7 @@ async function loadWeightChart() {
           }
         },
         xaxis: {
-          categories: dates,
+          type: 'datetime',
           title: {
             text: 'Date'
           }
