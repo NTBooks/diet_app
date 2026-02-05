@@ -1021,7 +1021,7 @@ async function loadWeightChart() {
         },
         stroke: {
           curve: 'straight',
-          width: [4, 3],
+          width: [4, 1],
           dashArray: [0, 5]
         },
         fill: {
@@ -1029,12 +1029,12 @@ async function loadWeightChart() {
           opacity: 0.8
         },
         markers: {
-          size: 4,
-          colors: ['#3B82F6'],
+          size: [4, 0],
+          colors: ['#3B82F6', '#EF4444'],
           strokeColors: '#fff',
           strokeWidth: 2,
           hover: {
-            size: 6
+            size: [6, 0]
           }
         },
         xaxis: {
