@@ -9,457 +9,613 @@
     <script src="https://unpkg.com/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
     <style>
         .fade-in {
-            animation: fadeIn 0.5s ease-in;
+            animation: fadeIn 0.3s ease-in;
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .sticky-summary {
-            position: sticky;
-            top: 0;
-            z-index: 40;
-            backdrop-filter: saturate(180%) blur(6px);
+        .tab-btn {
+            color: #6b7280;
+            transition: all 0.15s;
+        }
+
+        .tab-btn:hover {
+            background-color: #eef2ff;
+            color: #4f46e5;
+        }
+
+        .tab-btn.active {
+            background-color: #4f46e5;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 0.75rem;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .input-field:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.15s;
+        }
+
+        .btn-primary:hover { background-color: #4338ca; }
+
+        .btn-success {
+            background-color: #059669;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.15s;
+        }
+
+        .btn-success:hover { background-color: #047857; }
+
+        .btn-danger {
+            background-color: #dc2626;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.15s;
+        }
+
+        .btn-danger:hover { background-color: #b91c1c; }
+
+        .btn-amber {
+            background-color: #d97706;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.15s;
+        }
+
+        .btn-amber:hover { background-color: #b45309; }
+
+        .btn-purple {
+            background-color: #7c3aed;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.15s;
+        }
+
+        .btn-purple:hover { background-color: #6d28d9; }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid #d1d5db;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            color: #6b7280;
+            transition: background-color 0.15s;
+        }
+
+        .btn-outline:hover { background-color: #f3f4f6; }
+
+        .msg-success {
+            background-color: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .msg-error {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .msg-info {
+            background-color: #eef2ff;
+            border: 1px solid #c7d2fe;
+            color: #3730a3;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
         }
     </style>
 </head>
 
 <body class="bg-gray-50 min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 class="text-4xl font-bold text-center text-gray-800 mb-6">
-            🍽️ Diet App
-        </h1>
-        <!-- Daily Summary -->
-        <div
-            class="sticky-summary bg-white/90 border border-gray-200 rounded-xl shadow-sm p-5 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-                <div class="text-sm text-gray-500">Today’s Calories</div>
-                <div id="todayCalories" class="text-3xl font-semibold">0 kcal</div>
-                <div class="text-sm text-gray-500">
-                    Goal:
-                    <span id="calorieGoal">2000</span> • Remaining:
-                    <span id="calorieRemaining">2000</span>
-                </div>
+
+    <!-- ======================== AUTH SCREEN ======================== -->
+    <div id="authScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-400 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md fade-in">
+            <div class="text-center mb-6">
+                <div class="text-5xl mb-3">🍽️</div>
+                <h1 class="text-2xl font-bold text-gray-800">Diet App</h1>
+                <p class="text-gray-500 text-sm mt-1">Track your nutrition, weight, and health</p>
             </div>
-            <div class="w-full md:w-1/2">
-                <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div id="calorieProgress" class="h-2 bg-green-500 rounded-full" style="width: 0%"></div>
-                </div>
-            </div>
-            <!-- Inline goal setter -->
-            <div id="goalSetter" class="mt-2 text-sm text-gray-600 md:mt-0">
-                <label for="calorieGoalInput" class="mr-2">Daily goal:</label>
-                <input id="calorieGoalInput" type="number" min="500" max="10000" step="50"
-                    class="border rounded px-2 py-1 w-24" />
-                <button id="saveCalorieGoal" class="ml-2 px-2 py-1 bg-gray-100 border rounded">
-                    Save
+
+            <!-- Auth mode toggle -->
+            <div class="flex mb-6 bg-gray-100 rounded-lg p-1">
+                <button id="loginTabBtn" onclick="showAuthMode('login')"
+                    class="flex-1 py-2 rounded-md text-sm font-medium bg-white text-indigo-600 shadow-sm transition-all">
+                    Login
+                </button>
+                <button id="signupTabBtn" onclick="showAuthMode('signup')"
+                    class="flex-1 py-2 rounded-md text-sm font-medium text-gray-500 transition-all">
+                    Sign Up
                 </button>
             </div>
-        </div>
 
-        <!-- Quick Add Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">⚡ Quick Add</h2>
-            <p class="text-gray-600 mb-4">
-                Add one-time food items without saving them as templates
-            </p>
-            <form id="quickAddForm" class="grid gap-4 md:grid-cols-3">
+            <!-- Login Form -->
+            <form id="loginForm" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                    <div class="flex items-center gap-2">
-                        <input type="date" name="date" id="quickAddDate" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        <button type="button" class="px-2 py-1 text-xs bg-gray-100 border rounded"
-                            onclick="document.getElementById('quickAddDate').value = getTodayLocalDate()">
-                            Today
-                        </button>
-                    </div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" name="username" required autocomplete="username" class="input-field" placeholder="Enter your username" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Food Name</label>
-                    <input type="text" name="name" placeholder="e.g., Snickers bar, coffee" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" name="password" required autocomplete="current-password" class="input-field" placeholder="Enter your password" />
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Calories</label>
-                    <input type="number" name="calories" step="0.01" placeholder="e.g., 250" required
-                        inputmode="decimal"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div class="md:col-span-3">
-                    <button type="submit"
-                        class="w-full bg-yellow-600 text-white py-2 px-4 rounded-md hover:bg-yellow-700 transition-colors">
-                        Quick Add
-                    </button>
-                </div>
+                <button type="submit" class="w-full btn-primary py-2.5">Login</button>
             </form>
-            <div id="quickAddMsg" class="mt-4"></div>
-        </div>
 
-        <!-- Log Food Template Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                📝 Log Food Template Eaten
-            </h2>
-            <p class="text-gray-600 mb-4">
-                Templates are parameterized foods with a unit and calories per unit.
-            </p>
-            <form id="logMealForm" class="grid gap-4 md:grid-cols-3">
+            <!-- Signup Form -->
+            <form id="signupForm" class="space-y-4 hidden">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                    <div class="flex items-center gap-2">
-                        <input type="date" name="date" id="logDate" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        <button type="button" class="px-2 py-1 text-xs bg-gray-100 border rounded"
-                            onclick="document.getElementById('logDate').value = getTodayLocalDate()">
-                            Today
-                        </button>
-                    </div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Choose a Username</label>
+                    <input type="text" name="username" required autocomplete="username" class="input-field" placeholder="2-30 characters" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Food Template</label>
-                    <select name="meal_id" id="mealSelect" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
-                    <p id="selectedUnitHint" class="text-xs text-gray-500 mt-1"></p>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Choose a Password</label>
+                    <input type="password" name="password" required autocomplete="new-password" class="input-field" placeholder="At least 3 characters" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Quantity
-                        <span id="selectedUnitLabel" class="text-gray-400" aria-live="polite"></span>
-                    </label>
-                    <input type="number" name="ounces" step="0.01" required inputmode="decimal"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <div id="liveCalc" class="text-sm text-gray-600 mt-1 min-h-[20px]" aria-live="polite"></div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                    <input type="password" name="confirmPassword" required class="input-field" placeholder="Re-enter password" />
                 </div>
-                <div class="md:col-span-3">
-                    <button type="submit"
-                        class="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors">
-                        Log Food
-                    </button>
-                </div>
+                <button type="submit" class="w-full btn-success py-2.5">Create Account</button>
             </form>
-            <div id="logMealMsg" class="mt-4"></div>
-        </div>
 
-        <!-- Today's Foods Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                🍴 Today's Food Log
-            </h2>
-            <p class="text-gray-600 mb-4">
-                All templates and quick add items logged for the selected date
-            </p>
-            <div id="todayMeals"></div>
-        </div>
-
-        <!-- Weight Add Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                ⚖️ Daily Weight Log
-            </h2>
-            <form id="weightLogForm" class="flex gap-2 items-end mb-2">
-                <div>
-                    <label for="weightLogDate" class="block text-sm">Date</label>
-                    <div class="flex items-center gap-2">
-                        <input type="date" id="weightLogDate" name="date" class="border rounded px-2 py-1" required />
-                        <button type="button" class="px-2 py-1 text-xs bg-gray-100 border rounded"
-                            onclick="document.getElementById('weightLogDate').value = getTodayLocalDate()">
-                            Today
-                        </button>
-                    </div>
-                </div>
-                <div>
-                    <label for="weightLogWeight" class="block text-sm">Weight (lbs)</label>
-                    <input type="number" id="weightLogWeight" name="weight" class="border rounded px-2 py-1" min="50"
-                        max="1000" step="0.1" required inputmode="decimal" />
-                </div>
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                    Log
-                </button>
-            </form>
-            <div id="weightLogMsg" class="mb-2"></div>
-            <div>
-                <span class="text-sm text-gray-600">Today's Weight:</span>
-                <span id="todayWeight" class="ml-2"></span>
-            </div>
-        </div>
-
-        <!-- Weight Log Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                📊 Weight History
-            </h2>
-            <div class="mb-4">
-                <div class="mb-2">
-                    <span id="weightWeekLabel" class="px-3 py-1 font-semibold">All Weight Entries</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full border">
-                        <thead>
-                            <tr>
-                                <th class="border px-2 py-1 text-left">Date</th>
-                                <th class="border px-2 py-1 text-left">Weight</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recentWeightsTbody"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="mt-6">
-                <h3 class="font-semibold mb-2">Weight Trend</h3>
-                <div id="weightChart"></div>
-            </div>
-        </div>
-
-        <!-- Blood Pressure Add Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                ❤️ Blood Pressure Tracker
-            </h2>
-            <p class="text-gray-600 mb-4">
-                Log your blood pressure readings with current date and time
-            </p>
-            <form id="bloodPressureForm" class="grid gap-4 md:grid-cols-3">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Systolic (Top Number)</label>
-                    <input type="number" name="systolic" min="70" max="200" placeholder="e.g., 120" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" />
-                    <p class="text-xs text-gray-500 mt-1">Normal: 90-140</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Diastolic (Bottom Number)</label>
-                    <input type="number" name="diastolic" min="40" max="130" placeholder="e.g., 80" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" />
-                    <p class="text-xs text-gray-500 mt-1">Normal: 60-90</p>
-                </div>
-                <div class="flex items-end">
-                    <button type="submit"
-                        class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors">
-                        Log Blood Pressure
-                    </button>
-                </div>
-            </form>
-            <div id="bloodPressureMsg" class="mt-4"></div>
-        </div>
-
-        <!-- Blood Pressure Log Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                📈 Blood Pressure History
-            </h2>
-            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                    Latest Reading
-                </h3>
-                <div id="latestBPReading" class="text-center text-gray-500">
-                    Loading...
-                </div>
-            </div>
-            <div id="bloodPressureHistory"></div>
-        </div>
-
-        <!-- Blood Pressure Chart Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                📊 Blood Pressure Chart
-            </h2>
-            <div id="bloodPressureChart"></div>
-        </div>
-
-        <!-- Daily Calories Chart Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                📊 Daily Calories Chart
-            </h2>
-            <div id="caloriesChart"></div>
-        </div>
-
-        <!-- Lookup Calories Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                🤖 AI Calorie Lookup
-            </h2>
-            <form id="lookupForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Food Name</label>
-                    <input type="text" name="foodName" placeholder="e.g., apple, chicken breast" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Portion Size</label>
-                    <input type="text" name="portionSize" placeholder="e.g., 1 medium, 4 oz" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <button type="submit"
-                    class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors">
-                    🔍 Lookup Calories
-                </button>
-            </form>
-            <div id="lookupResult" class="mt-4"></div>
-        </div>
-
-        <!-- Add New Food Template Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                ➕ Add New Food Template
-            </h2>
-            <form id="addMealForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Food Name</label>
-                    <input type="text" name="name" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div class="grid gap-4 md:grid-cols-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Calories per Unit</label>
-                        <input type="number" name="calories_per_serving" step="0.01" required inputmode="decimal"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Units per Serving</label>
-                        <input type="number" name="ounces_per_serving" step="0.01" required inputmode="decimal"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Unit Type</label>
-                        <select name="unit_type" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">Select a unit</option>
-                            <option value="piece">Piece</option>
-                            <option value="cup">Cup</option>
-                            <option value="tablespoon">Tablespoon</option>
-                            <option value="teaspoon">Teaspoon</option>
-                            <option value="ounce">Ounce</option>
-                            <option value="gram">Gram</option>
-                            <option value="slice">Slice</option>
-                            <option value="can">Can</option>
-                            <option value="bottle">Bottle</option>
-                            <option value="serving">Serving</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                    <!-- ID column note: ID is assigned by API; we display in table below -->
-                    <div class="hidden"></div>
-                </div>
-                <button type="submit"
-                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
-                    Add Food Template
-                </button>
-            </form>
-            <div id="addMealMsg" class="mt-4"></div>
-        </div>
-
-        <!-- Saved Food Templates Section (ID in first column) -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                📋 Saved Food Templates
-            </h2>
-            <p class="text-gray-600 mb-4">
-                Manage your saved templates. Deleting a template won't affect your
-                food history.
-            </p>
-            <div id="savedMeals"></div>
-        </div>
-
-        <!-- Calendar Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                📅 Calories Calendar
-            </h2>
-            <div class="grid gap-4 md:grid-cols-3 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                    <input type="date" id="calendarStart"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                    <input type="date" id="calendarEnd"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div class="flex items-end">
-                    <button id="loadCalendar"
-                        class="w-full bg-orange-600 text-white py-2 px-4 rounded-md hover:bg-orange-700 transition-colors">
-                        Load Calendar
-                    </button>
-                </div>
-            </div>
-            <div class="overflow-x-auto">
-                <table id="calendarTable" class="w-full border-collapse">
-                    <thead>
-                        <tr class="bg-gray-100">
-                            <th class="border border-gray-300 px-4 py-2 text-left font-semibold">
-                                Date
-                            </th>
-                            <th class="border border-gray-300 px-4 py-2 text-left font-semibold">
-                                Total Calories
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Doctor's Report Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8 border border-gray-200">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">
-                🏥 Doctor's Report
-            </h2>
-            <p class="text-gray-600 mb-4">
-                Generate a comprehensive report for your doctor showing the last two weeks of health data
-            </p>
-            <button id="generateReport"
-                class="w-full bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 transition-colors font-semibold text-lg">
-                📋 Generate Doctor's Report
-            </button>
-            <div id="reportContainer" class="mt-6 hidden">
-                <div id="reportContent" class="bg-gray-50 p-6 rounded-lg border">
-                    <!-- Report content will be generated here -->
-                </div>
-                <div class="mt-4 flex gap-2">
-                    <button id="printReport"
-                        class="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors">
-                        🖨️ Print Report
-                    </button>
-                    <button id="downloadReport"
-                        class="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors">
-                        📥 Download PDF
-                    </button>
-                </div>
-            </div>
+            <div id="authMsg" class="mt-4"></div>
         </div>
     </div>
 
-    <!-- Enhancement script: goal persistence + summary bar updater + unit hint/live calc -->
+    <!-- ======================== MAIN APP SCREEN ======================== -->
+    <div id="appScreen" class="hidden min-h-screen bg-gray-50">
+
+        <!-- Header -->
+        <header class="bg-indigo-700 text-white shadow-lg">
+            <div class="container mx-auto px-4 py-3 flex items-center justify-between max-w-5xl">
+                <h1 class="text-lg font-bold flex items-center gap-2">🍽️ Diet App</h1>
+                <div class="flex items-center gap-3">
+                    <span class="text-indigo-200 text-sm hidden sm:inline">
+                        Signed in as <span id="currentUser" class="text-white font-medium"></span>
+                    </span>
+                    <button id="logoutBtn" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-md text-sm transition-colors">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="bg-white shadow-sm border-b sticky top-0 z-50">
+            <div class="container mx-auto px-4 max-w-5xl">
+                <div class="flex overflow-x-auto gap-1 py-1.5 -mx-1">
+                    <button data-tab="today" class="tab-btn active px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Today</button>
+                    <button data-tab="health" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Health</button>
+                    <button data-tab="charts" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Charts</button>
+                    <button data-tab="templates" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Templates</button>
+                    <button data-tab="reports" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Reports</button>
+                    <button data-tab="account" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Account</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-6 max-w-5xl">
+
+            <!-- Daily Summary (always visible) -->
+            <div class="card flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <div class="text-sm text-gray-500">Today's Calories</div>
+                    <div id="todayCalories" class="text-3xl font-bold text-gray-800">0 kcal</div>
+                    <div class="text-sm text-gray-500">
+                        Goal: <span id="calorieGoal">2000</span> kcal
+                        &bull; Remaining: <span id="calorieRemaining" class="font-medium">2000</span>
+                    </div>
+                </div>
+                <div class="flex-1 max-w-xs">
+                    <div class="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="calorieProgress" class="h-2.5 bg-green-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                    <label for="calorieGoalInput" class="text-gray-600 whitespace-nowrap">Daily goal:</label>
+                    <input id="calorieGoalInput" type="number" min="500" max="10000" step="50" class="input-field w-20 text-sm py-1" />
+                    <button id="saveCalorieGoal" class="btn-outline">Save</button>
+                </div>
+            </div>
+
+            <!-- ======================== TAB: TODAY ======================== -->
+            <div id="tab-today" class="tab-content fade-in">
+
+                <!-- Quick Add -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Quick Add</h2>
+                    <p class="text-gray-500 text-sm mb-4">Add a one-time food entry without saving a template</p>
+                    <form id="quickAddForm" class="grid gap-3 md:grid-cols-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <div class="flex items-center gap-1">
+                                <input type="date" name="date" id="quickAddDate" required class="input-field text-sm" />
+                                <button type="button" class="btn-outline" onclick="document.getElementById('quickAddDate').value = getTodayLocalDate()">Today</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Food Name</label>
+                            <input type="text" name="name" placeholder="e.g., Snickers bar" required class="input-field text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Calories</label>
+                            <input type="number" name="calories" step="0.01" placeholder="e.g., 250" required inputmode="decimal" class="input-field text-sm" />
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="w-full btn-amber py-2 text-sm">Quick Add</button>
+                        </div>
+                    </form>
+                    <div id="quickAddMsg" class="mt-3"></div>
+                </div>
+
+                <!-- Log Food Template -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Log Food Template</h2>
+                    <p class="text-gray-500 text-sm mb-4">Use a saved template with automatic calorie calculation</p>
+                    <form id="logMealForm" class="grid gap-3 md:grid-cols-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <div class="flex items-center gap-1">
+                                <input type="date" name="date" id="logDate" required class="input-field text-sm" />
+                                <button type="button" class="btn-outline" onclick="document.getElementById('logDate').value = getTodayLocalDate()">Today</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Food Template</label>
+                            <select name="meal_id" id="mealSelect" required class="input-field text-sm"></select>
+                            <p id="selectedUnitHint" class="text-xs text-gray-400 mt-1"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Quantity <span id="selectedUnitLabel" class="text-gray-400"></span>
+                            </label>
+                            <input type="number" name="ounces" step="0.01" required inputmode="decimal" class="input-field text-sm" />
+                            <div id="liveCalc" class="text-xs text-indigo-600 mt-1 min-h-[16px] font-medium"></div>
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="w-full btn-purple py-2 text-sm">Log Food</button>
+                        </div>
+                    </form>
+                    <div id="logMealMsg" class="mt-3"></div>
+                </div>
+
+                <!-- Today's Food Log -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Today's Food Log</h2>
+                    <div id="todayMeals"></div>
+                </div>
+            </div>
+
+            <!-- ======================== TAB: HEALTH ======================== -->
+            <div id="tab-health" class="tab-content hidden fade-in">
+
+                <!-- Weight Log -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Daily Weight Log</h2>
+                    <form id="weightLogForm" class="flex flex-wrap gap-3 items-end mb-3">
+                        <div>
+                            <label for="weightLogDate" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <div class="flex items-center gap-1">
+                                <input type="date" id="weightLogDate" name="date" class="input-field text-sm" required />
+                                <button type="button" class="btn-outline" onclick="document.getElementById('weightLogDate').value = getTodayLocalDate()">Today</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="weightLogWeight" class="block text-sm font-medium text-gray-700 mb-1">Weight (lbs)</label>
+                            <input type="number" id="weightLogWeight" name="weight" class="input-field text-sm w-28" min="50" max="1000" step="0.1" required inputmode="decimal" />
+                        </div>
+                        <button type="submit" class="btn-primary py-2 text-sm">Log Weight</button>
+                    </form>
+                    <div id="weightLogMsg" class="mb-2"></div>
+                    <div class="text-sm text-gray-600">
+                        Today's Weight: <span id="todayWeight" class="ml-1 font-semibold"></span>
+                    </div>
+                </div>
+
+                <!-- Blood Pressure -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Blood Pressure Tracker</h2>
+                    <p class="text-gray-500 text-sm mb-4">Log your blood pressure with current date and time</p>
+                    <form id="bloodPressureForm" class="grid gap-3 md:grid-cols-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Systolic (Top)</label>
+                            <input type="number" name="systolic" min="70" max="200" placeholder="e.g., 120" required class="input-field text-sm" />
+                            <p class="text-xs text-gray-400 mt-1">Normal: 90-140</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Diastolic (Bottom)</label>
+                            <input type="number" name="diastolic" min="40" max="130" placeholder="e.g., 80" required class="input-field text-sm" />
+                            <p class="text-xs text-gray-400 mt-1">Normal: 60-90</p>
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="w-full btn-danger py-2 text-sm">Log Blood Pressure</button>
+                        </div>
+                    </form>
+                    <div id="bloodPressureMsg" class="mt-3"></div>
+                </div>
+
+                <!-- Latest BP -->
+                <div class="card">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">Latest Blood Pressure</h3>
+                    <div id="latestBPReading" class="text-center text-gray-500">Loading...</div>
+                </div>
+            </div>
+
+            <!-- ======================== TAB: CHARTS ======================== -->
+            <div id="tab-charts" class="tab-content hidden fade-in">
+
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Weight History</h2>
+                    <div class="mb-4">
+                        <div class="overflow-x-auto max-h-64">
+                            <table class="w-full text-sm">
+                                <thead class="sticky top-0 bg-gray-100">
+                                    <tr>
+                                        <th class="border px-3 py-1.5 text-left font-semibold">Date</th>
+                                        <th class="border px-3 py-1.5 text-left font-semibold">Weight</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentWeightsTbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <h3 class="font-semibold text-gray-700 mb-2">Weight Trend</h3>
+                    <div id="weightChart"></div>
+                </div>
+
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Blood Pressure Chart</h2>
+                    <div id="bloodPressureChart"></div>
+                </div>
+
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Daily Calories Chart</h2>
+                    <div id="caloriesChart"></div>
+                </div>
+            </div>
+
+            <!-- ======================== TAB: TEMPLATES ======================== -->
+            <div id="tab-templates" class="tab-content hidden fade-in">
+
+                <!-- AI Calorie Lookup -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">AI Calorie Lookup</h2>
+                    <p class="text-gray-500 text-sm mb-4">Get an AI estimate for any food</p>
+                    <form id="lookupForm" class="grid gap-3 md:grid-cols-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Food Name</label>
+                            <input type="text" name="foodName" placeholder="e.g., apple, chicken breast" required class="input-field text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Portion Size</label>
+                            <input type="text" name="portionSize" placeholder="e.g., 1 medium, 4 oz" required class="input-field text-sm" />
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="w-full btn-success py-2 text-sm">Lookup Calories</button>
+                        </div>
+                    </form>
+                    <div id="lookupResult" class="mt-4"></div>
+                </div>
+
+                <!-- Add New Food Template -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Add New Food Template</h2>
+                    <form id="addMealForm" class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Food Name</label>
+                            <input type="text" name="name" required class="input-field text-sm" />
+                        </div>
+                        <div class="grid gap-3 md:grid-cols-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Calories per Unit</label>
+                                <input type="number" name="calories_per_serving" step="0.01" required inputmode="decimal" class="input-field text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Units per Serving</label>
+                                <input type="number" name="ounces_per_serving" step="0.01" required inputmode="decimal" class="input-field text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Unit Type</label>
+                                <select name="unit_type" required class="input-field text-sm">
+                                    <option value="">Select a unit</option>
+                                    <option value="piece">Piece</option>
+                                    <option value="cup">Cup</option>
+                                    <option value="tablespoon">Tablespoon</option>
+                                    <option value="teaspoon">Teaspoon</option>
+                                    <option value="ounce">Ounce</option>
+                                    <option value="gram">Gram</option>
+                                    <option value="slice">Slice</option>
+                                    <option value="can">Can</option>
+                                    <option value="bottle">Bottle</option>
+                                    <option value="serving">Serving</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full btn-primary py-2 text-sm">Add Food Template</button>
+                    </form>
+                    <div id="addMealMsg" class="mt-3"></div>
+                </div>
+
+                <!-- Saved Food Templates -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Saved Food Templates</h2>
+                    <p class="text-gray-500 text-sm mb-3">Manage your templates. Deleting won't affect food history.</p>
+                    <div id="savedMeals"></div>
+                </div>
+            </div>
+
+            <!-- ======================== TAB: REPORTS ======================== -->
+            <div id="tab-reports" class="tab-content hidden fade-in">
+
+                <!-- Calendar -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Calories Calendar</h2>
+                    <div class="grid gap-3 md:grid-cols-3 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <input type="date" id="calendarStart" class="input-field text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                            <input type="date" id="calendarEnd" class="input-field text-sm" />
+                        </div>
+                        <div class="flex items-end">
+                            <button id="loadCalendar" class="w-full btn-amber py-2 text-sm">Load Calendar</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table id="calendarTable" class="w-full border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="border px-3 py-2 text-left font-semibold">Date</th>
+                                    <th class="border px-3 py-2 text-left font-semibold">Total Calories</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Doctor's Report -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Doctor's Report</h2>
+                    <p class="text-gray-500 text-sm mb-4">Generate a two-week health data summary for your doctor</p>
+                    <button id="generateReport" class="w-full btn-primary py-2.5 text-sm font-semibold">
+                        Generate Doctor's Report
+                    </button>
+                    <div id="reportContainer" class="mt-6 hidden">
+                        <div id="reportContent" class="bg-gray-50 p-6 rounded-lg border"></div>
+                        <div class="mt-4 flex gap-2">
+                            <button id="printReport" class="btn-success text-sm">Print Report</button>
+                            <button id="downloadReport" class="btn-purple text-sm">Download PDF</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======================== TAB: ACCOUNT ======================== -->
+            <div id="tab-account" class="tab-content hidden fade-in">
+
+                <div class="card max-w-md">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Account Settings</h2>
+                    <p class="text-gray-500 text-sm mb-4">Manage your account</p>
+
+                    <div class="mb-6 p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                        <div class="text-sm text-indigo-600 font-medium">Username</div>
+                        <div id="accountUsername" class="text-lg font-bold text-indigo-800"></div>
+                    </div>
+
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Change Password</h3>
+                    <form id="changePasswordForm" class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                            <input type="password" name="currentPassword" required class="input-field text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                            <input type="password" name="newPassword" required class="input-field text-sm" placeholder="At least 3 characters" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                            <input type="password" name="confirmNewPassword" required class="input-field text-sm" />
+                        </div>
+                        <button type="submit" class="w-full btn-primary py-2 text-sm">Change Password</button>
+                    </form>
+                    <div id="changePasswordMsg" class="mt-3"></div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Inline helpers for auth screen toggle and calorie summary -->
     <script>
-        // Goal persistence
-        const CAL_GOAL_KEY = "calorieGoal";
-        function getCalorieGoal() {
-            const v = localStorage.getItem(CAL_GOAL_KEY);
-            const n = v ? parseInt(v, 10) : NaN;
-            return Number.isFinite(n) && n > 0 ? n : 2000;
-        }
-        function setCalorieGoal(n) {
-            if (!Number.isFinite(n) || n <= 0) return;
-            localStorage.setItem(CAL_GOAL_KEY, String(Math.round(n)));
+        // Auth screen mode switching
+        function showAuthMode(mode) {
+            const loginForm = document.getElementById('loginForm');
+            const signupForm = document.getElementById('signupForm');
+            const loginTab = document.getElementById('loginTabBtn');
+            const signupTab = document.getElementById('signupTabBtn');
+            const authMsg = document.getElementById('authMsg');
+
+            authMsg.innerHTML = '';
+
+            if (mode === 'login') {
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+                loginTab.className = 'flex-1 py-2 rounded-md text-sm font-medium bg-white text-indigo-600 shadow-sm transition-all';
+                signupTab.className = 'flex-1 py-2 rounded-md text-sm font-medium text-gray-500 transition-all';
+            } else {
+                loginForm.classList.add('hidden');
+                signupForm.classList.remove('hidden');
+                signupTab.className = 'flex-1 py-2 rounded-md text-sm font-medium bg-white text-indigo-600 shadow-sm transition-all';
+                loginTab.className = 'flex-1 py-2 rounded-md text-sm font-medium text-gray-500 transition-all';
+            }
         }
 
-        // Summary bar updater
-        function updateCalorieSummary(totalToday, goal = getCalorieGoal()) {
-            const calEl = document.getElementById("todayCalories");
-            const goalEl = document.getElementById("calorieGoal");
-            const remEl = document.getElementById("calorieRemaining");
-            const bar = document.getElementById("calorieProgress");
+        // Calorie goal (stored per-user on server, cached in memory)
+        let _calorieGoal = 2000;
+
+        function getCalorieGoal() {
+            return _calorieGoal;
+        }
+
+        function setCalorieGoal(n) {
+            if (!Number.isFinite(n) || n <= 0) return;
+            _calorieGoal = Math.round(n);
+        }
+
+        function updateCalorieSummary(totalToday, goal) {
+            goal = goal || getCalorieGoal();
+            const calEl = document.getElementById('todayCalories');
+            const goalEl = document.getElementById('calorieGoal');
+            const remEl = document.getElementById('calorieRemaining');
+            const bar = document.getElementById('calorieProgress');
             if (!calEl || !goalEl || !remEl || !bar) return;
 
             const total = Math.round(totalToday || 0);
@@ -473,219 +629,18 @@
 
             const pct = g > 0 ? Math.min((total / g) * 100, 100) : 0;
             bar.style.width = `${pct}%`;
-            bar.className =
-                "h-2 rounded-full " +
-                (pct < 80 ? "bg-green-500" : pct < 100 ? "bg-yellow-500" : "bg-red-500");
+            bar.className = 'h-2.5 rounded-full transition-all duration-300 ' +
+                (pct < 80 ? 'bg-green-500' : pct < 100 ? 'bg-yellow-500' : 'bg-red-500');
         }
 
-        // Enhance: unit hint + live calc based on option text
-        function extractMealMetaFromOptionText(txt) {
-            // Example option text (no ID suffix now):
-            // "Chicken (120 cal/4 ounce)"
-            const unitMatch = txt.match(/cal\/(\d+(?:\.\d+)?)\s+([a-zA-Z]+)/);
-            const calMatch = txt.match(/\((\d+(?:\.\d+)?)\s*cal/);
-            return {
-                caloriesPerServing: calMatch ? parseFloat(calMatch[1]) : null,
-                unitsPerServing: unitMatch ? parseFloat(unitMatch[1]) : null,
-                unitType: unitMatch ? unitMatch[2] : null,
-            };
-        }
-
-        function updateUnitUI() {
-            const mealSelect = document.getElementById("mealSelect");
-            const unitLabel = document.getElementById("selectedUnitLabel");
-            const unitHint = document.getElementById("selectedUnitHint");
-            const opt = mealSelect?.options[mealSelect.selectedIndex];
-            if (!opt) {
-                unitLabel.textContent = "";
-                unitHint.textContent = "";
-                return;
-            }
-            const meta = extractMealMetaFromOptionText(opt.textContent);
-            unitLabel.textContent = meta.unitType ? `(${meta.unitType})` : "";
-            unitHint.textContent =
-                meta.caloriesPerServing && meta.unitsPerServing && meta.unitType
-                    ? `${meta.caloriesPerServing} cal per ${meta.unitsPerServing} ${meta.unitType}`
-                    : "";
-            updateLiveCalc();
-        }
-
-        function updateLiveCalc() {
-            const mealSelect = document.getElementById("mealSelect");
-            const ouncesInput = document.querySelector(
-                '#logMealForm input[name="ounces"]'
-            );
-            const liveCalc = document.getElementById("liveCalc");
-            const opt = mealSelect?.options[mealSelect.selectedIndex];
-            const qty = parseFloat(ouncesInput?.value || "0");
-            if (!opt || !(qty > 0)) {
-                liveCalc.textContent = "";
-                return;
-            }
-            const meta = extractMealMetaFromOptionText(opt.textContent);
-            if (
-                meta.caloriesPerServing != null &&
-                meta.unitsPerServing != null &&
-                meta.unitsPerServing > 0
-            ) {
-                const total = Math.round(
-                    (qty * meta.caloriesPerServing) / meta.unitsPerServing
-                );
-                const unit = meta.unitType || "units";
-                liveCalc.textContent = `${qty} ${unit} ≈ ${total} cal`;
-            } else {
-                liveCalc.textContent = "";
-            }
-        }
-
-        // Initialize goal UI and listeners
-        document.addEventListener("DOMContentLoaded", () => {
-            // Seed goal input and initialize summary with zero
-            const goalInput = document.getElementById("calorieGoalInput");
-            if (goalInput) goalInput.value = getCalorieGoal();
-            updateCalorieSummary(0, getCalorieGoal());
-
-            const saveBtn = document.getElementById("saveCalorieGoal");
-            if (saveBtn) {
-                saveBtn.addEventListener("click", () => {
-                    const n = parseInt(
-                        document.getElementById("calorieGoalInput").value,
-                        10
-                    );
-                    if (!Number.isFinite(n) || n <= 0) return;
-                    setCalorieGoal(n);
-                    // Recompute using current displayed total
-                    const totalText =
-                        (document.getElementById("todayCalories")?.textContent || "0")
-                            .replace(/[^\d.]/g, "") || "0";
-                    const total = parseFloat(totalText) || 0;
-                    updateCalorieSummary(total, getCalorieGoal());
-                });
-            }
-
-            // Hook unit UI events
-            const mealSelect = document.getElementById("mealSelect");
-            const ouncesInput = document.querySelector(
-                '#logMealForm input[name="ounces"]'
-            );
-            if (mealSelect) mealSelect.addEventListener("change", updateUnitUI);
-            if (ouncesInput) ouncesInput.addEventListener("input", updateLiveCalc);
-        });
-
-        // Expose updateCalorieSummary globally so app.js can call it
+        // Expose globally
         window.updateCalorieSummary = updateCalorieSummary;
         window.getCalorieGoal = getCalorieGoal;
+        window.setCalorieGoal = setCalorieGoal;
+        window.showAuthMode = showAuthMode;
     </script>
 
-    <!-- Your original app logic (uses your API and renders history) -->
     <script src="app.js"></script>
-
-    <!-- Patch: ensure saved templates table shows ID as first column,
- and mealSelect option text has NO trailing " - ID: X". We rely on your
- existing app.js functions, but we override two render helpers below
- without changing endpoints. -->
-    <script>
-        // Override loadSavedMeals to render ID first column
-        if (typeof loadSavedMeals === "function") {
-            const originalLoadSavedMeals = loadSavedMeals;
-            window.loadSavedMeals = async function () {
-                try {
-                    const res = await fetch("/api/meals");
-                    const data = await res.json();
-                    const container = document.getElementById("savedMeals");
-                    if (data.status === "success" && data.meals && data.meals.length > 0) {
-                        const rows = data.meals
-                            .map((meal) => {
-                                const unitType = meal.unit_type || "piece";
-                                return `<tr class='hover:bg-gray-50'>
-            <td class='border border-gray-300 px-4 py-2 text-center'>${meal.id}</td>
-            <td class='border border-gray-300 px-4 py-2 font-medium'>${meal.name}</td>
-            <td class='border border-gray-300 px-4 py-2 text-center'>${meal.calories_per_serving}</td>
-            <td class='border border-gray-300 px-4 py-2 text-center'>${meal.ounces_per_serving} ${unitType}</td>
-            <td class='border border-gray-300 px-4 py-2 text-center'>
-              <button onclick="deleteMealTemplate(${meal.id}, '${meal.name}')" class="text-red-600 hover:text-red-800 transition-colors" title="Delete">
-                <svg class="h-5 w-5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </td>
-          </tr>`;
-                            })
-                            .join("");
-
-                        container.innerHTML = `
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse mb-2">
-            <thead>
-              <tr class="bg-gray-100">
-                <th class="border border-gray-300 px-4 py-2 text-center font-semibold">ID</th>
-                <th class="border border-gray-300 px-4 py-2 text-left font-semibold">Food Template</th>
-                <th class="border border-gray-300 px-4 py-2 text-center font-semibold">Calories per Unit</th>
-                <th class="border border-gray-300 px-4 py-2 text-center font-semibold">Units per Serving</th>
-                <th class="border border-gray-300 px-4 py-2 text-center font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      `;
-                    } else {
-                        container.innerHTML =
-                            '<div class="text-gray-500 text-center py-4">No saved templates yet.</div>';
-                    }
-                } catch (error) {
-                    document.getElementById("savedMeals").innerHTML =
-                        '<div class="text-red-500 text-center py-4">Error loading templates</div>';
-                }
-            };
-        }
-
-        // Override updateMealSelect to drop " - ID: X" from option text and keep ID as value
-        if (typeof updateMealSelect === "function") {
-            const originalUpdateMealSelect = updateMealSelect;
-            window.updateMealSelect = async function (selectedId) {
-                const res = await fetch("/api/meals");
-                const data = await res.json();
-                const select = document.getElementById("mealSelect");
-                select.innerHTML = "";
-                if (!data.meals) return;
-                data.meals.forEach((meal) => {
-                    const option = document.createElement("option");
-                    option.value = meal.id;
-                    const unitType = meal.unit_type || "piece";
-                    // Text WITHOUT ID suffix
-                    option.textContent = `${meal.name} (${meal.calories_per_serving} cal/${meal.ounces_per_serving} ${unitType})`;
-                    if (selectedId && meal.id === selectedId) {
-                        option.selected = true;
-                    }
-                    select.appendChild(option);
-                });
-                // Update unit hint after population
-                updateUnitUI();
-            };
-        }
-
-        // Observe today's meals to update the top bar automatically
-        const mealsContainer = document.getElementById("todayMeals");
-        if (mealsContainer && "MutationObserver" in window) {
-            const obs = new MutationObserver(() => {
-                const totalText = mealsContainer.innerText || "";
-                const match = totalText.match(/Total:\s*(\d+(?:\.\d+)?)\s*cal/i);
-                const total = match ? parseFloat(match[1]) : null;
-                if (total != null && typeof updateCalorieSummary === "function") {
-                    updateCalorieSummary(total, getCalorieGoal());
-                }
-            });
-            obs.observe(mealsContainer, { childList: true, subtree: true });
-        }
-
-        // Initialize IDs display and selectors after app.js bootstraps
-        document.addEventListener("DOMContentLoaded", () => {
-            // Seed goal input
-            const goalInput = document.getElementById("calorieGoalInput");
-            if (goalInput) goalInput.value = getCalorieGoal();
-        });
-    </script>
 </body>
 
 </html>
