@@ -1,8 +1,12 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "python3"]
+nixPkgs = ["nodejs_20", "python3", "gcc", "gnumake"]
 
 [phases.install]
 cmds = ["npm ci --omit=dev"]
+
+# No build phase -- the package.json "build" script is for Electron desktop builds only
+[phases.build]
+cmds = []
 
 [start]
 cmd = "node index.js"
