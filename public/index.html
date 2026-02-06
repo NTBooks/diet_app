@@ -231,6 +231,7 @@
                     <button data-tab="health" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Health</button>
                     <button data-tab="charts" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Charts</button>
                     <button data-tab="templates" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Templates</button>
+                    <button data-tab="recipes" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Recipes</button>
                     <button data-tab="reports" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Reports</button>
                     <button data-tab="account" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Account</button>
                 </div>
@@ -321,6 +322,37 @@
                         </div>
                     </form>
                     <div id="logMealMsg" class="mt-3"></div>
+                </div>
+
+                <!-- Log Recipe -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Log Recipe</h2>
+                    <p class="text-gray-500 text-sm mb-4">Log cooked ounces from a saved recipe</p>
+                    <form id="logRecipeForm" class="grid gap-3 md:grid-cols-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <div class="flex items-center gap-1">
+                                <input type="date" name="date" id="logRecipeDate" required class="input-field text-sm" />
+                                <button type="button" class="btn-outline" onclick="document.getElementById('logRecipeDate').value = getTodayLocalDate()">Today</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Recipe</label>
+                            <select name="recipe_id" id="recipeSelect" required class="input-field text-sm"></select>
+                            <p id="recipeHint" class="text-xs text-gray-400 mt-1"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Cooked Oz Eaten
+                            </label>
+                            <input type="number" name="cooked_oz" step="0.01" required inputmode="decimal" class="input-field text-sm" />
+                            <div id="recipeCalcLive" class="text-xs text-indigo-600 mt-1 min-h-[16px] font-medium"></div>
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="w-full btn-success py-2 text-sm">Log Recipe</button>
+                        </div>
+                    </form>
+                    <div id="logRecipeMsg" class="mt-3"></div>
                 </div>
 
                 <!-- Today's Food Log -->
@@ -486,6 +518,103 @@
                     <h2 class="text-xl font-bold text-gray-800 mb-3">Saved Food Templates</h2>
                     <p class="text-gray-500 text-sm mb-3">Manage your templates. Deleting won't affect food history.</p>
                     <div id="savedMeals"></div>
+                </div>
+            </div>
+
+            <!-- ======================== TAB: RECIPES ======================== -->
+            <div id="tab-recipes" class="tab-content hidden fade-in">
+
+                <!-- Recipe Builder -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Recipe Builder</h2>
+                    <p class="text-gray-500 text-sm mb-4">Build a recipe from templates and custom items, then enter the cooked weight to get cal/oz</p>
+
+                    <div class="space-y-4">
+                        <!-- Recipe Name -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Recipe Name</label>
+                            <input type="text" id="recipeName" placeholder="e.g., Chicken Stir Fry" class="input-field text-sm" />
+                        </div>
+
+                        <!-- Add from Template -->
+                        <div class="bg-gray-50 rounded-lg p-3 border">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Add from Food Template</h3>
+                            <div class="grid gap-2 md:grid-cols-4">
+                                <div class="md:col-span-2">
+                                    <select id="recipeTemplateSelect" class="input-field text-sm"></select>
+                                </div>
+                                <div>
+                                    <input type="number" id="recipeTemplateQty" step="0.01" placeholder="Qty" inputmode="decimal" class="input-field text-sm" />
+                                </div>
+                                <div>
+                                    <button type="button" id="addTemplateToRecipeBtn" class="w-full btn-primary py-2 text-sm">+ Add</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Add Custom Item -->
+                        <div class="bg-gray-50 rounded-lg p-3 border">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Add Custom Item</h3>
+                            <div class="grid gap-2 md:grid-cols-5">
+                                <div>
+                                    <input type="text" id="recipeCustomName" placeholder="Item name" class="input-field text-sm" />
+                                </div>
+                                <div>
+                                    <input type="number" id="recipeCustomCal" step="0.01" placeholder="Cal/unit" inputmode="decimal" class="input-field text-sm" />
+                                </div>
+                                <div>
+                                    <select id="recipeCustomUnit" class="input-field text-sm">
+                                        <option value="ounce">Ounce</option>
+                                        <option value="gram">Gram</option>
+                                        <option value="piece">Piece</option>
+                                        <option value="cup">Cup</option>
+                                        <option value="tablespoon">Tbsp</option>
+                                        <option value="teaspoon">Tsp</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <input type="number" id="recipeCustomQty" step="0.01" placeholder="Qty" inputmode="decimal" class="input-field text-sm" />
+                                </div>
+                                <div>
+                                    <button type="button" id="addCustomToRecipeBtn" class="w-full btn-amber py-2 text-sm">+ Add</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recipe Line Items -->
+                        <div id="recipeItemsContainer">
+                            <div class="text-gray-400 text-center py-4 text-sm">No items added yet. Add items above to build your recipe.</div>
+                        </div>
+
+                        <!-- Cooked Weight & Summary -->
+                        <div class="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                            <div class="grid gap-3 md:grid-cols-3 items-end">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Total Raw Calories</label>
+                                    <div id="recipeTotalCalories" class="text-2xl font-bold text-indigo-700">0 cal</div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Cooked Total Weight (oz)</label>
+                                    <input type="number" id="recipeCookedWeight" step="0.01" placeholder="e.g., 32" inputmode="decimal" class="input-field text-sm" />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Calories per Cooked Oz</label>
+                                    <div id="recipeCalPerOz" class="text-2xl font-bold text-green-700">-- cal/oz</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <button type="button" id="saveRecipeBtn" class="w-full btn-success py-2.5 text-sm font-semibold">Save Recipe</button>
+                        <div id="saveRecipeMsg" class="mt-1"></div>
+                    </div>
+                </div>
+
+                <!-- Saved Recipes -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Saved Recipes</h2>
+                    <p class="text-gray-500 text-sm mb-3">Your saved recipes with calculated calories per cooked ounce.</p>
+                    <div id="savedRecipes"></div>
                 </div>
             </div>
 

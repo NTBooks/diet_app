@@ -242,6 +242,33 @@ class DatabaseMigration {
                             UPDATE meals SET unit_type = 'piece' WHERE unit_type IS NULL
                         `);
                     }
+                },
+                {
+                    version: '006',
+                    description: 'Add recipes and recipe items tables',
+                    run: async () => {
+                        await this.runQuery(`
+                            CREATE TABLE IF NOT EXISTS recipes (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                name TEXT NOT NULL,
+                                cooked_weight_oz REAL NOT NULL,
+                                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                            )
+                        `);
+                        await this.runQuery(`
+                            CREATE TABLE IF NOT EXISTS recipe_items (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                recipe_id INTEGER NOT NULL,
+                                source_type TEXT NOT NULL DEFAULT 'custom',
+                                template_id INTEGER,
+                                name TEXT NOT NULL,
+                                calories_per_unit REAL NOT NULL,
+                                unit_type TEXT NOT NULL DEFAULT 'ounce',
+                                quantity REAL NOT NULL,
+                                FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+                            )
+                        `);
+                    }
                 }
             ];
 

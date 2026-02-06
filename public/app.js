@@ -24,8 +24,36 @@ const apiPost = async (url, body) => {
     });
 };
 
+const apiPut = async (url, body) => {
+    return apiFetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+};
+
 const apiDelete = async (url) => {
     return apiFetch(url, { method: 'DELETE' });
+};
+
+// ==============================================
+//  CALORIE DENSITY COLOR CODING
+// ==============================================
+
+// Normalizes to cal/oz equivalent and returns a background + text color pair
+const getCalorieDensityColors = (caloriesPerServing, ouncesPerServing, unitType) => {
+    const perUnit = caloriesPerServing / (ouncesPerServing || 1);
+    let calPerOz = perUnit;
+    if (unitType === 'gram') {
+        calPerOz = perUnit * 28.35;
+    }
+    // Tiers based on cal/oz equivalent
+    if (calPerOz <= 15)  return { bg: '#dcfce7', text: '#166534' }; // green  — raw veggies, leafy greens
+    if (calPerOz <= 35)  return { bg: '#ecfccb', text: '#3f6212' }; // lime   — lean proteins, light fruits
+    if (calPerOz <= 60)  return { bg: '#fef9c3', text: '#854d0e' }; // yellow — most meats, cooked grains
+    if (calPerOz <= 100) return { bg: '#ffedd5', text: '#9a3412' }; // orange — fatty meats, bread, honey
+    if (calPerOz <= 175) return { bg: '#fee2e2', text: '#991b1b' }; // red    — nuts, peanut butter, mayo
+    return                       { bg: '#fecdd3', text: '#881337' }; // rose   — oils
 };
 
 // ==============================================
@@ -213,6 +241,13 @@ function switchTab(tabName) {
         loadBloodPressureChart();
         loadCaloriesChart();
     }
+
+    // Lazy-load recipes tab data
+    if (tabName === 'recipes' && !recipesLoaded) {
+        recipesLoaded = true;
+        updateRecipeTemplateSelect();
+        loadSavedRecipes();
+    }
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -263,8 +298,10 @@ function setTodayForLogDate() {
     const today = getTodayLocalDate();
     const logDateInput = document.getElementById('logDate');
     const quickAddDateInput = document.getElementById('quickAddDate');
+    const logRecipeDateInput = document.getElementById('logRecipeDate');
     if (logDateInput) logDateInput.value = today;
     if (quickAddDateInput) quickAddDateInput.value = today;
+    if (logRecipeDateInput) logRecipeDateInput.value = today;
 }
 
 // ==============================================
@@ -342,6 +379,9 @@ async function updateMealSelect(selectedId) {
             option.value = meal.id;
             const unitType = meal.unit_type || 'piece';
             option.textContent = `${meal.name} (${meal.calories_per_serving} cal/${meal.ounces_per_serving} ${unitType})`;
+            const colors = getCalorieDensityColors(meal.calories_per_serving, meal.ounces_per_serving, unitType);
+            option.style.backgroundColor = colors.bg;
+            option.style.color = colors.text;
             if (selectedId && meal.id === selectedId) option.selected = true;
             select.appendChild(option);
         });
@@ -360,9 +400,10 @@ async function loadSavedMeals() {
         if (data.status === 'success' && data.meals && data.meals.length > 0) {
             const rows = data.meals.map(meal => {
                 const unitType = meal.unit_type || 'piece';
-                return `<tr class="hover:bg-gray-50">
+                const colors = getCalorieDensityColors(meal.calories_per_serving, meal.ounces_per_serving, unitType);
+                return `<tr style="background-color:${colors.bg}">
                     <td class="border px-3 py-2 text-center text-gray-400 text-xs">${meal.id}</td>
-                    <td class="border px-3 py-2 font-medium">${meal.name}</td>
+                    <td class="border px-3 py-2 font-medium" style="color:${colors.text}">${meal.name}</td>
                     <td class="border px-3 py-2 text-center">${meal.calories_per_serving}</td>
                     <td class="border px-3 py-2 text-center">${meal.ounces_per_serving} ${unitType}</td>
                     <td class="border px-3 py-2 text-center">
@@ -506,6 +547,44 @@ document.getElementById('quickAddForm').addEventListener('submit', async (e) => 
         }
     } catch (err) {
         document.getElementById('quickAddMsg').innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
+    }
+});
+
+// Log recipe
+document.getElementById('logRecipeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const select = document.getElementById('recipeSelect');
+    const opt = select.options[select.selectedIndex];
+    const cookedOz = parseFloat(form.cooked_oz.value);
+
+    if (!opt || !opt.value || !cookedOz || cookedOz <= 0) {
+        document.getElementById('logRecipeMsg').innerHTML = '<div class="msg-error text-sm">Please select a recipe and enter cooked oz</div>';
+        return;
+    }
+
+    const calPerOz = parseFloat(opt.dataset.calPerOz);
+    const recipeName = opt.textContent.split(' (')[0];
+    const calories = Math.round(cookedOz * calPerOz);
+
+    try {
+        const res = await apiPost('/api/meal_log', {
+            meal_name: `Recipe: ${recipeName}`,
+            date: form.date.value,
+            calories
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            form.reset();
+            const logRecipeDate = document.getElementById('logRecipeDate');
+            if (logRecipeDate) logRecipeDate.value = getTodayLocalDate();
+            renderTodayMeals();
+            document.getElementById('logRecipeMsg').innerHTML = '<div class="msg-success text-sm">Recipe logged!</div>';
+        } else {
+            document.getElementById('logRecipeMsg').innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+        }
+    } catch (err) {
+        document.getElementById('logRecipeMsg').innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
     }
 });
 
@@ -796,6 +875,345 @@ async function deleteQuickAdd(id) {
     } catch (err) {
         alert('Error: ' + err.message);
     }
+}
+
+// ==============================================
+//  RECIPE BUILDER
+// ==============================================
+
+let recipeItems = [];
+let recipesLoaded = false;
+
+// Populate the template dropdown on the Recipes tab
+async function updateRecipeTemplateSelect() {
+    try {
+        const res = await apiFetch('/api/meals');
+        const data = await res.json();
+        const select = document.getElementById('recipeTemplateSelect');
+        if (!select) return;
+        select.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.textContent = 'Select a food template...';
+        placeholder.value = '';
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        select.appendChild(placeholder);
+
+        if (!data.meals || data.meals.length === 0) return;
+        data.meals.forEach(meal => {
+            const option = document.createElement('option');
+            const unitType = meal.unit_type || 'piece';
+            option.value = meal.id;
+            option.textContent = `${meal.name} (${meal.calories_per_serving} cal/${meal.ounces_per_serving} ${unitType})`;
+            option.dataset.name = meal.name;
+            option.dataset.cal = meal.calories_per_serving;
+            option.dataset.serving = meal.ounces_per_serving;
+            option.dataset.unit = unitType;
+            const colors = getCalorieDensityColors(meal.calories_per_serving, meal.ounces_per_serving, unitType);
+            option.style.backgroundColor = colors.bg;
+            option.style.color = colors.text;
+            select.appendChild(option);
+        });
+    } catch (err) {
+        console.error('Error loading recipe template select:', err);
+    }
+}
+
+function addTemplateToRecipe() {
+    const select = document.getElementById('recipeTemplateSelect');
+    const qtyInput = document.getElementById('recipeTemplateQty');
+    const opt = select.options[select.selectedIndex];
+    if (!opt || !opt.value) return;
+    const qty = parseFloat(qtyInput.value);
+    if (!qty || qty <= 0) return;
+
+    const calPerServing = parseFloat(opt.dataset.cal);
+    const servingSize = parseFloat(opt.dataset.serving);
+    const calPerUnit = servingSize > 0 ? calPerServing / servingSize : calPerServing;
+
+    recipeItems.push({
+        source_type: 'template',
+        template_id: parseInt(opt.value),
+        name: opt.dataset.name,
+        calories_per_unit: calPerUnit,
+        unit_type: opt.dataset.unit,
+        quantity: qty
+    });
+
+    qtyInput.value = '';
+    select.selectedIndex = 0;
+    renderRecipeItems();
+}
+
+function addCustomToRecipe() {
+    const name = document.getElementById('recipeCustomName').value.trim();
+    const cal = parseFloat(document.getElementById('recipeCustomCal').value);
+    const unit = document.getElementById('recipeCustomUnit').value;
+    const qty = parseFloat(document.getElementById('recipeCustomQty').value);
+
+    if (!name || !cal || !qty || qty <= 0) return;
+
+    recipeItems.push({
+        source_type: 'custom',
+        template_id: null,
+        name,
+        calories_per_unit: cal,
+        unit_type: unit,
+        quantity: qty
+    });
+
+    document.getElementById('recipeCustomName').value = '';
+    document.getElementById('recipeCustomCal').value = '';
+    document.getElementById('recipeCustomQty').value = '';
+    renderRecipeItems();
+}
+
+function removeRecipeItem(index) {
+    recipeItems.splice(index, 1);
+    renderRecipeItems();
+}
+
+function renderRecipeItems() {
+    const container = document.getElementById('recipeItemsContainer');
+    const totalCalEl = document.getElementById('recipeTotalCalories');
+    const calPerOzEl = document.getElementById('recipeCalPerOz');
+    const cookedWeightInput = document.getElementById('recipeCookedWeight');
+
+    if (recipeItems.length === 0) {
+        container.innerHTML = '<div class="text-gray-400 text-center py-4 text-sm">No items added yet. Add items above to build your recipe.</div>';
+        totalCalEl.textContent = '0 cal';
+        calPerOzEl.textContent = '-- cal/oz';
+        return;
+    }
+
+    const totalCal = recipeItems.reduce((sum, item) => sum + (item.calories_per_unit * item.quantity), 0);
+    totalCalEl.textContent = `${Math.round(totalCal)} cal`;
+
+    const cookedWeight = parseFloat(cookedWeightInput.value) || 0;
+    if (cookedWeight > 0) {
+        const calPerOz = totalCal / cookedWeight;
+        calPerOzEl.textContent = `${calPerOz.toFixed(1)} cal/oz`;
+    } else {
+        calPerOzEl.textContent = '-- cal/oz';
+    }
+
+    const rows = recipeItems.map((item, idx) => {
+        const itemCal = Math.round(item.calories_per_unit * item.quantity);
+        const colors = getCalorieDensityColors(item.calories_per_unit, 1, item.unit_type);
+        const sourceIcon = item.source_type === 'template' ? '📋' : '✏️';
+        return `<tr style="background-color:${colors.bg}">
+            <td class="border px-3 py-2 text-sm" style="color:${colors.text}">${sourceIcon} ${item.name}</td>
+            <td class="border px-3 py-2 text-sm text-center">${item.calories_per_unit}/${item.unit_type}</td>
+            <td class="border px-3 py-2 text-sm text-center">${item.quantity}</td>
+            <td class="border px-3 py-2 text-sm text-center font-semibold">${itemCal}</td>
+            <td class="border px-3 py-2 text-center">
+                <button onclick="removeRecipeItem(${idx})" class="text-red-500 hover:text-red-700 transition-colors" title="Remove">
+                    <svg class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border px-3 py-2 text-left font-semibold">Item</th>
+                        <th class="border px-3 py-2 text-center font-semibold">Cal/Unit</th>
+                        <th class="border px-3 py-2 text-center font-semibold">Qty</th>
+                        <th class="border px-3 py-2 text-center font-semibold">Total Cal</th>
+                        <th class="border px-3 py-2 text-center font-semibold w-12"></th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>`;
+}
+
+async function saveRecipe() {
+    const name = document.getElementById('recipeName').value.trim();
+    const cookedWeight = parseFloat(document.getElementById('recipeCookedWeight').value);
+    const msgEl = document.getElementById('saveRecipeMsg');
+
+    if (!name) {
+        msgEl.innerHTML = '<div class="msg-error text-sm">Please enter a recipe name</div>';
+        return;
+    }
+    if (recipeItems.length === 0) {
+        msgEl.innerHTML = '<div class="msg-error text-sm">Add at least one item to the recipe</div>';
+        return;
+    }
+    if (!cookedWeight || cookedWeight <= 0) {
+        msgEl.innerHTML = '<div class="msg-error text-sm">Enter the cooked total weight in ounces</div>';
+        return;
+    }
+
+    try {
+        const res = await apiPost('/api/recipes', {
+            name,
+            cooked_weight_oz: cookedWeight,
+            items: recipeItems
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            msgEl.innerHTML = '<div class="msg-success text-sm">Recipe saved!</div>';
+            // Reset builder
+            document.getElementById('recipeName').value = '';
+            document.getElementById('recipeCookedWeight').value = '';
+            recipeItems = [];
+            renderRecipeItems();
+            loadSavedRecipes();
+            updateRecipeSelect();
+        } else {
+            msgEl.innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+        }
+    } catch (err) {
+        msgEl.innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
+    }
+}
+
+async function loadSavedRecipes() {
+    try {
+        const res = await apiFetch('/api/recipes');
+        const data = await res.json();
+        const container = document.getElementById('savedRecipes');
+        if (!container) return;
+
+        if (data.status === 'success' && data.recipes && data.recipes.length > 0) {
+            const rows = data.recipes.map(recipe => {
+                const colors = getCalorieDensityColors(recipe.cal_per_oz, 1, 'ounce');
+                return `<tr style="background-color:${colors.bg}">
+                    <td class="border px-3 py-2 font-medium" style="color:${colors.text}">${recipe.name}</td>
+                    <td class="border px-3 py-2 text-center">${Math.round(recipe.total_calories)}</td>
+                    <td class="border px-3 py-2 text-center">${recipe.cooked_weight_oz} oz</td>
+                    <td class="border px-3 py-2 text-center font-semibold">${recipe.cal_per_oz.toFixed(1)}</td>
+                    <td class="border px-3 py-2 text-center text-xs text-gray-500">${recipe.items ? recipe.items.length : 0}</td>
+                    <td class="border px-3 py-2 text-center">
+                        <button onclick="deleteRecipe(${recipe.id}, '${recipe.name.replace(/'/g, "\\'")}')"
+                            class="text-red-500 hover:text-red-700 transition-colors" title="Delete">
+                            <svg class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="border px-3 py-2 text-left font-semibold">Recipe</th>
+                                <th class="border px-3 py-2 text-center font-semibold">Total Cal</th>
+                                <th class="border px-3 py-2 text-center font-semibold">Cooked Weight</th>
+                                <th class="border px-3 py-2 text-center font-semibold">Cal/Oz</th>
+                                <th class="border px-3 py-2 text-center font-semibold">Items</th>
+                                <th class="border px-3 py-2 text-center font-semibold w-12"></th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+        } else {
+            container.innerHTML = '<div class="text-gray-400 text-center py-4 text-sm">No saved recipes yet.</div>';
+        }
+    } catch (err) {
+        const container = document.getElementById('savedRecipes');
+        if (container) container.innerHTML = '<div class="text-red-500 text-center py-4 text-sm">Error loading recipes</div>';
+    }
+}
+
+async function deleteRecipe(id, name) {
+    if (!confirm(`Delete the recipe "${name}"?`)) return;
+    try {
+        const res = await apiDelete(`/api/recipes/${id}`);
+        const data = await res.json();
+        if (data.status === 'success') {
+            loadSavedRecipes();
+            updateRecipeSelect();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// ==============================================
+//  RECIPE SELECT & LOG (Today tab)
+// ==============================================
+
+let cachedRecipes = [];
+
+async function updateRecipeSelect() {
+    try {
+        const res = await apiFetch('/api/recipes');
+        const data = await res.json();
+        const select = document.getElementById('recipeSelect');
+        if (!select) return;
+        select.innerHTML = '';
+
+        cachedRecipes = (data.status === 'success' && data.recipes) ? data.recipes : [];
+
+        if (cachedRecipes.length === 0) {
+            const opt = document.createElement('option');
+            opt.textContent = 'No recipes yet';
+            opt.disabled = true;
+            select.appendChild(opt);
+            return;
+        }
+
+        cachedRecipes.forEach(recipe => {
+            const option = document.createElement('option');
+            option.value = recipe.id;
+            option.textContent = `${recipe.name} (${recipe.cal_per_oz.toFixed(1)} cal/oz, ${recipe.cooked_weight_oz} oz cooked)`;
+            option.dataset.calPerOz = recipe.cal_per_oz;
+            option.dataset.totalCal = recipe.total_calories;
+            option.dataset.cookedWeight = recipe.cooked_weight_oz;
+            const colors = getCalorieDensityColors(recipe.cal_per_oz, 1, 'ounce');
+            option.style.backgroundColor = colors.bg;
+            option.style.color = colors.text;
+            select.appendChild(option);
+        });
+
+        updateRecipeHint();
+    } catch (err) {
+        console.error('Error loading recipe select:', err);
+    }
+}
+
+function updateRecipeHint() {
+    const select = document.getElementById('recipeSelect');
+    const hint = document.getElementById('recipeHint');
+    const opt = select && select.options[select.selectedIndex];
+    if (!opt || !opt.dataset.calPerOz) {
+        if (hint) hint.textContent = '';
+        return;
+    }
+    if (hint) hint.textContent = `${parseFloat(opt.dataset.calPerOz).toFixed(1)} cal per cooked oz · ${Math.round(parseFloat(opt.dataset.totalCal))} total cal`;
+    updateRecipeLiveCalc();
+}
+
+function updateRecipeLiveCalc() {
+    const select = document.getElementById('recipeSelect');
+    const ozInput = document.querySelector('#logRecipeForm input[name="cooked_oz"]');
+    const liveCalc = document.getElementById('recipeCalcLive');
+    const opt = select && select.options[select.selectedIndex];
+    const oz = parseFloat(ozInput && ozInput.value || '0');
+
+    if (!opt || !opt.dataset.calPerOz || !(oz > 0)) {
+        if (liveCalc) liveCalc.textContent = '';
+        return;
+    }
+
+    const calPerOz = parseFloat(opt.dataset.calPerOz);
+    const total = Math.round(oz * calPerOz);
+    if (liveCalc) liveCalc.textContent = `${oz} oz = ${total} cal`;
 }
 
 // ==============================================
@@ -1201,7 +1619,8 @@ function checkMidnightCrossing() {
     const dateInputs = [
         document.getElementById('logDate'),
         document.getElementById('quickAddDate'),
-        document.getElementById('weightLogDate')
+        document.getElementById('weightLogDate'),
+        document.getElementById('logRecipeDate')
     ].filter(Boolean);
 
     let needsUpdate = false;
@@ -1302,8 +1721,41 @@ async function initApp() {
     if (mealSelect) mealSelect.addEventListener('change', updateUnitUI);
     if (ouncesInput) ouncesInput.addEventListener('input', updateLiveCalc);
 
+    // Hook up recipe select events
+    const recipeSelect = document.getElementById('recipeSelect');
+    const recipeOzInput = document.querySelector('#logRecipeForm input[name="cooked_oz"]');
+    if (recipeSelect) recipeSelect.addEventListener('change', updateRecipeHint);
+    if (recipeOzInput) recipeOzInput.addEventListener('input', updateRecipeLiveCalc);
+
+    // Hook up recipe builder buttons
+    const addTemplateBtn = document.getElementById('addTemplateToRecipeBtn');
+    if (addTemplateBtn) {
+        const newBtn = addTemplateBtn.cloneNode(true);
+        addTemplateBtn.parentNode.replaceChild(newBtn, addTemplateBtn);
+        newBtn.addEventListener('click', addTemplateToRecipe);
+    }
+    const addCustomBtn = document.getElementById('addCustomToRecipeBtn');
+    if (addCustomBtn) {
+        const newBtn = addCustomBtn.cloneNode(true);
+        addCustomBtn.parentNode.replaceChild(newBtn, addCustomBtn);
+        newBtn.addEventListener('click', addCustomToRecipe);
+    }
+    const saveRecipeBtn = document.getElementById('saveRecipeBtn');
+    if (saveRecipeBtn) {
+        const newBtn = saveRecipeBtn.cloneNode(true);
+        saveRecipeBtn.parentNode.replaceChild(newBtn, saveRecipeBtn);
+        newBtn.addEventListener('click', saveRecipe);
+    }
+    const cookedWeightInput = document.getElementById('recipeCookedWeight');
+    if (cookedWeightInput) cookedWeightInput.addEventListener('input', renderRecipeItems);
+
+    // Reset recipe builder state
+    recipesLoaded = false;
+    recipeItems = [];
+
     // Load data
     updateMealSelect();
+    updateRecipeSelect();
     renderTodayMeals();
     loadSavedMeals();
     loadLatestBPReading();

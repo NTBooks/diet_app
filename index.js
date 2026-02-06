@@ -150,11 +150,209 @@ const initUserTables = async (db) => {
             meal_type TEXT DEFAULT 'Other',
             notes TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS recipes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            cooked_weight_oz REAL NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+        `CREATE TABLE IF NOT EXISTS recipe_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipe_id INTEGER NOT NULL,
+            source_type TEXT NOT NULL DEFAULT 'custom',
+            template_id INTEGER,
+            name TEXT NOT NULL,
+            calories_per_unit REAL NOT NULL,
+            unit_type TEXT NOT NULL DEFAULT 'ounce',
+            quantity REAL NOT NULL,
+            FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
         )`
     ];
+    await dbRun(db, 'PRAGMA foreign_keys = ON');
     for (const sql of tables) {
         await dbRun(db, sql);
     }
+};
+
+// === Default Food Templates (USDA-sourced raw calorie data) ===
+
+const DEFAULT_FOOD_TEMPLATES = [
+    // --- Beef (raw, per ounce) ---
+    // USDA FoodData Central standard reference values
+    { name: 'Ribeye Steak (Raw)', calories: 78, serving: 1, unit: 'ounce', category: 'Beef' },
+    { name: 'Sirloin Steak (Raw)', calories: 46, serving: 1, unit: 'ounce', category: 'Beef' },
+    { name: 'Flank Steak (Raw)', calories: 44, serving: 1, unit: 'ounce', category: 'Beef' },
+    { name: 'Ground Beef 90/10 (Raw)', calories: 50, serving: 1, unit: 'ounce', category: 'Beef' },
+    { name: 'Ground Beef 85/15 (Raw)', calories: 61, serving: 1, unit: 'ounce', category: 'Beef' },
+    { name: 'Ground Beef 80/20 (Raw)', calories: 72, serving: 1, unit: 'ounce', category: 'Beef' },
+
+    // --- Pork (raw, per ounce) ---
+    { name: 'Pork Tenderloin (Raw)', calories: 39, serving: 1, unit: 'ounce', category: 'Pork' },
+    { name: 'Pork Chop (Raw)', calories: 46, serving: 1, unit: 'ounce', category: 'Pork' },
+    { name: 'Pork Loin Roast (Raw)', calories: 41, serving: 1, unit: 'ounce', category: 'Pork' },
+
+    // --- Poultry (raw, per ounce) ---
+    { name: 'Chicken Breast (Raw)', calories: 34, serving: 1, unit: 'ounce', category: 'Poultry' },
+    { name: 'Chicken Thigh (Raw)', calories: 37, serving: 1, unit: 'ounce', category: 'Poultry' },
+    { name: 'Chicken Wing (Raw)', calories: 54, serving: 1, unit: 'ounce', category: 'Poultry' },
+    { name: 'Turkey Breast (Raw)', calories: 31, serving: 1, unit: 'ounce', category: 'Poultry' },
+
+    // --- Seafood (raw, per ounce) ---
+    { name: 'Salmon (Raw)', calories: 59, serving: 1, unit: 'ounce', category: 'Seafood' },
+    { name: 'Tilapia (Raw)', calories: 27, serving: 1, unit: 'ounce', category: 'Seafood' },
+    { name: 'Cod (Raw)', calories: 23, serving: 1, unit: 'ounce', category: 'Seafood' },
+    { name: 'Haddock (Raw)', calories: 25, serving: 1, unit: 'ounce', category: 'Seafood' },
+    { name: 'Shrimp (Raw)', calories: 24, serving: 1, unit: 'ounce', category: 'Seafood' },
+    { name: 'Tuna (Raw)', calories: 31, serving: 1, unit: 'ounce', category: 'Seafood' },
+
+    // --- Vegetables (raw, per ounce) ---
+    { name: 'Broccoli (Raw)', calories: 10, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Cauliflower (Raw)', calories: 7, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Green Beans (Raw)', calories: 9, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Cabbage (Raw)', calories: 7, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Kale (Raw)', calories: 14, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Spinach (Raw)', calories: 7, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Sweet Potato (Raw)', calories: 24, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Celery (Raw)', calories: 4, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Cucumber (Raw)', calories: 4, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Zucchini (Raw)', calories: 5, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Asparagus (Raw)', calories: 6, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Mushrooms (Raw)', calories: 6, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Brussels Sprouts (Raw)', calories: 12, serving: 1, unit: 'ounce', category: 'Vegetables' },
+    { name: 'Carrots (Raw)', calories: 12, serving: 1, unit: 'ounce', category: 'Vegetables' },
+
+    // --- Vegetables (per piece) ---
+    { name: 'Bell Pepper (Medium)', calories: 25, serving: 1, unit: 'piece', category: 'Vegetables' },
+    { name: 'Onion (Medium)', calories: 45, serving: 1, unit: 'piece', category: 'Vegetables' },
+    { name: 'Shallot', calories: 7, serving: 1, unit: 'piece', category: 'Vegetables' },
+    { name: 'Tomato (Medium)', calories: 22, serving: 1, unit: 'piece', category: 'Vegetables' },
+
+    // --- Sauces & Condiments (per ounce) ---
+    { name: 'Tomato Paste', calories: 24, serving: 1, unit: 'ounce', category: 'Sauces' },
+    { name: 'Tomato Sauce', calories: 9, serving: 1, unit: 'ounce', category: 'Sauces' },
+    { name: 'Tomato Puree', calories: 11, serving: 1, unit: 'ounce', category: 'Sauces' },
+    { name: 'Ketchup', calories: 19, serving: 1, unit: 'ounce', category: 'Sauces' },
+    { name: 'Yellow Mustard', calories: 9, serving: 1, unit: 'ounce', category: 'Sauces' },
+    { name: 'Brown Mustard', calories: 10, serving: 1, unit: 'ounce', category: 'Sauces' },
+    { name: 'German Mustard', calories: 10, serving: 1, unit: 'ounce', category: 'Sauces' },
+    { name: 'French Mustard (Dijon)', calories: 15, serving: 1, unit: 'ounce', category: 'Sauces' },
+    { name: 'Mayonnaise', calories: 188, serving: 1, unit: 'ounce', category: 'Sauces' },
+
+    // --- Oils & Condiments (per ounce) ---
+    { name: 'Honey', calories: 86, serving: 1, unit: 'ounce', category: 'Oils & Condiments' },
+    { name: 'Olive Oil', calories: 240, serving: 1, unit: 'ounce', category: 'Oils & Condiments' },
+    { name: 'Avocado Oil', calories: 240, serving: 1, unit: 'ounce', category: 'Oils & Condiments' },
+    { name: 'Peanut Butter', calories: 167, serving: 1, unit: 'ounce', category: 'Oils & Condiments' },
+
+    // --- Grains (per gram) ---
+    { name: 'White Rice (Cooked)', calories: 1.30, serving: 1, unit: 'gram', category: 'Grains' },
+    { name: 'Brown Rice (Cooked)', calories: 1.12, serving: 1, unit: 'gram', category: 'Grains' },
+    { name: 'Wild Rice (Cooked)', calories: 1.01, serving: 1, unit: 'gram', category: 'Grains' },
+    { name: 'White Bread', calories: 2.65, serving: 1, unit: 'gram', category: 'Grains' },
+    { name: 'Whole Wheat Bread', calories: 2.52, serving: 1, unit: 'gram', category: 'Grains' },
+    { name: 'Quinoa (Cooked)', calories: 1.20, serving: 1, unit: 'gram', category: 'Grains' },
+    { name: 'Oats (Dry)', calories: 3.89, serving: 1, unit: 'gram', category: 'Grains' },
+
+    // --- Fruits ---
+    { name: 'Banana (Medium)', calories: 105, serving: 1, unit: 'piece', category: 'Fruits' },
+    { name: 'Apple (Medium)', calories: 95, serving: 1, unit: 'piece', category: 'Fruits' },
+    { name: 'Avocado', calories: 45, serving: 1, unit: 'ounce', category: 'Fruits' },
+    { name: 'Blueberries', calories: 16, serving: 1, unit: 'ounce', category: 'Fruits' },
+    { name: 'Strawberries', calories: 9, serving: 1, unit: 'ounce', category: 'Fruits' },
+
+    // --- Dairy & Eggs ---
+    { name: 'Egg (Large)', calories: 72, serving: 1, unit: 'piece', category: 'Dairy & Eggs' },
+    { name: 'Greek Yogurt (Plain, Nonfat)', calories: 17, serving: 1, unit: 'ounce', category: 'Dairy & Eggs' },
+    { name: 'Cottage Cheese (Low Fat)', calories: 23, serving: 1, unit: 'ounce', category: 'Dairy & Eggs' },
+
+    // --- Nuts & Seeds (per ounce) ---
+    { name: 'Almonds', calories: 164, serving: 1, unit: 'ounce', category: 'Nuts & Seeds' },
+    { name: 'Walnuts', calories: 185, serving: 1, unit: 'ounce', category: 'Nuts & Seeds' },
+
+    // --- Legumes (per gram, cooked) ---
+    { name: 'Lentils (Cooked)', calories: 1.16, serving: 1, unit: 'gram', category: 'Legumes' },
+    { name: 'Black Beans (Cooked)', calories: 1.32, serving: 1, unit: 'gram', category: 'Legumes' },
+    { name: 'Chickpeas (Cooked)', calories: 1.64, serving: 1, unit: 'gram', category: 'Legumes' },
+];
+
+const DEFAULT_CATEGORIES = [
+    { name: 'Beef', color: '#DC2626' },
+    { name: 'Pork', color: '#EA580C' },
+    { name: 'Poultry', color: '#F59E0B' },
+    { name: 'Seafood', color: '#0891B2' },
+    { name: 'Vegetables', color: '#16A34A' },
+    { name: 'Fruits', color: '#8B5CF6' },
+    { name: 'Grains', color: '#D97706' },
+    { name: 'Legumes', color: '#92400E' },
+    { name: 'Oils & Condiments', color: '#854D0E' },
+    { name: 'Sauces', color: '#B91C1C' },
+    { name: 'Dairy & Eggs', color: '#2563EB' },
+    { name: 'Nuts & Seeds', color: '#78716C' },
+];
+
+const seedDefaultMeals = async (db) => {
+    const seeded = await dbGet(db, "SELECT value FROM user_preferences WHERE key = 'default_meals_seeded'");
+    if (seeded) return;
+
+    const insertMeal = 'INSERT INTO meals (name, calories_per_serving, ounces_per_serving, unit_type, category) VALUES (?, ?, ?, ?, ?)';
+    for (const meal of DEFAULT_FOOD_TEMPLATES) {
+        await dbRun(db, insertMeal, [meal.name, meal.calories, meal.serving, meal.unit, meal.category]);
+    }
+
+    for (const cat of DEFAULT_CATEGORIES) {
+        await dbRun(db, 'INSERT OR IGNORE INTO meal_categories (name, color) VALUES (?, ?)', [cat.name, cat.color]);
+    }
+
+    await dbRun(db, "INSERT OR REPLACE INTO user_preferences (key, value, updated_at) VALUES ('default_meals_seeded', 'true', CURRENT_TIMESTAMP)");
+    console.log('Seeded default food templates');
+};
+
+// === Default Demo Recipes ===
+
+const DEFAULT_RECIPES = [
+    {
+        name: 'Simple Chili',
+        cooked_weight_oz: 48,
+        // Total raw calories: 1807, cal/oz cooked: ~37.6
+        items: [
+            { source_type: 'custom', name: 'Spanglish Asadero Birria Seasoning (1 oz)', calories_per_unit: 0, unit_type: 'piece', quantity: 1 },
+            { source_type: 'custom', name: 'Ground Beef 80/20 (Raw)', calories_per_unit: 72, unit_type: 'ounce', quantity: 16 },
+            { source_type: 'custom', name: 'Rotel Diced Tomatoes & Green Chilies (10 oz can)', calories_per_unit: 100, unit_type: 'piece', quantity: 1 },
+            { source_type: 'custom', name: 'Tri-Bean Chili Mix (15 oz can)', calories_per_unit: 420, unit_type: 'piece', quantity: 1 },
+            { source_type: 'custom', name: 'Onion (Medium)', calories_per_unit: 45, unit_type: 'piece', quantity: 1 },
+            { source_type: 'custom', name: 'Frozen Sliced Bell Peppers (16 oz bag)', calories_per_unit: 90, unit_type: 'piece', quantity: 1 },
+        ]
+    }
+];
+
+const seedDefaultRecipes = async (db) => {
+    const seeded = await dbGet(db, "SELECT value FROM user_preferences WHERE key = 'default_recipes_seeded'");
+    if (seeded) return;
+
+    for (const recipe of DEFAULT_RECIPES) {
+        const result = await dbRun(db,
+            'INSERT INTO recipes (name, cooked_weight_oz) VALUES (?, ?)',
+            [recipe.name, recipe.cooked_weight_oz]
+        );
+        const recipeId = result.lastID;
+
+        const insertItem = 'INSERT INTO recipe_items (recipe_id, source_type, template_id, name, calories_per_unit, unit_type, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)';
+        for (const item of recipe.items) {
+            await dbRun(db, insertItem, [
+                recipeId,
+                item.source_type,
+                item.template_id || null,
+                item.name,
+                item.calories_per_unit,
+                item.unit_type,
+                item.quantity
+            ]);
+        }
+    }
+
+    await dbRun(db, "INSERT OR REPLACE INTO user_preferences (key, value, updated_at) VALUES ('default_recipes_seeded', 'true', CURRENT_TIMESTAMP)");
+    console.log('Seeded default recipes');
 };
 
 const getUserDb = async (username) => {
@@ -164,6 +362,8 @@ const getUserDb = async (username) => {
     const dbPath = getUserDbPath(username);
     const db = await openDb(dbPath);
     await initUserTables(db);
+    await seedDefaultMeals(db);
+    await seedDefaultRecipes(db);
     userDbs.set(username, db);
     return db;
 };
@@ -770,6 +970,146 @@ app.post('/api/meal_categories', async (req, res) => {
         if (err.message && err.message.includes('UNIQUE constraint failed')) {
             return res.status(400).json({ status: 'error', message: 'Category already exists' });
         }
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
+// --- Recipes ---
+
+app.post('/api/recipes', async (req, res) => {
+    try {
+        const name = sanitize(req.body.name);
+        const cooked_weight_oz = parseFloat(req.body.cooked_weight_oz);
+        const items = req.body.items;
+
+        if (!name || !cooked_weight_oz || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ status: 'error', message: 'Name, cooked weight, and at least one item are required' });
+        }
+
+        const result = await dbRun(req.userDb,
+            'INSERT INTO recipes (name, cooked_weight_oz) VALUES (?, ?)',
+            [name, cooked_weight_oz]
+        );
+        const recipeId = result.lastID;
+
+        const insertItem = 'INSERT INTO recipe_items (recipe_id, source_type, template_id, name, calories_per_unit, unit_type, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)';
+        for (const item of items) {
+            await dbRun(req.userDb, insertItem, [
+                recipeId,
+                sanitize(item.source_type) || 'custom',
+                item.template_id || null,
+                sanitize(item.name),
+                parseFloat(item.calories_per_unit),
+                sanitize(item.unit_type) || 'ounce',
+                parseFloat(item.quantity)
+            ]);
+        }
+
+        return res.json({ status: 'success', message: 'Recipe saved', recipe_id: recipeId });
+    } catch (err) {
+        console.error('Recipe create error:', err);
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
+app.get('/api/recipes', async (req, res) => {
+    try {
+        const recipes = await dbAll(req.userDb, 'SELECT * FROM recipes ORDER BY name ASC', []);
+        const result = [];
+        for (const recipe of recipes) {
+            const items = await dbAll(req.userDb, 'SELECT * FROM recipe_items WHERE recipe_id = ?', [recipe.id]);
+            const total_calories = items.reduce((sum, item) => sum + (item.calories_per_unit * item.quantity), 0);
+            const cal_per_oz = recipe.cooked_weight_oz > 0 ? total_calories / recipe.cooked_weight_oz : 0;
+            result.push({
+                ...recipe,
+                items,
+                total_calories: Math.round(total_calories * 100) / 100,
+                cal_per_oz: Math.round(cal_per_oz * 100) / 100
+            });
+        }
+        return res.json({ status: 'success', recipes: result });
+    } catch (err) {
+        console.error('Recipe list error:', err);
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
+app.get('/api/recipes/:id', async (req, res) => {
+    try {
+        const id = sanitize(req.params.id);
+        const recipe = await dbGet(req.userDb, 'SELECT * FROM recipes WHERE id = ?', [id]);
+        if (!recipe) {
+            return res.status(404).json({ status: 'error', message: 'Recipe not found' });
+        }
+        const items = await dbAll(req.userDb, 'SELECT * FROM recipe_items WHERE recipe_id = ?', [id]);
+        const total_calories = items.reduce((sum, item) => sum + (item.calories_per_unit * item.quantity), 0);
+        const cal_per_oz = recipe.cooked_weight_oz > 0 ? total_calories / recipe.cooked_weight_oz : 0;
+        return res.json({
+            status: 'success',
+            recipe: {
+                ...recipe,
+                items,
+                total_calories: Math.round(total_calories * 100) / 100,
+                cal_per_oz: Math.round(cal_per_oz * 100) / 100
+            }
+        });
+    } catch (err) {
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
+app.put('/api/recipes/:id', async (req, res) => {
+    try {
+        const id = sanitize(req.params.id);
+        const name = sanitize(req.body.name);
+        const cooked_weight_oz = parseFloat(req.body.cooked_weight_oz);
+        const items = req.body.items;
+
+        if (!name || !cooked_weight_oz || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ status: 'error', message: 'Name, cooked weight, and at least one item are required' });
+        }
+
+        const existing = await dbGet(req.userDb, 'SELECT id FROM recipes WHERE id = ?', [id]);
+        if (!existing) {
+            return res.status(404).json({ status: 'error', message: 'Recipe not found' });
+        }
+
+        await dbRun(req.userDb, 'UPDATE recipes SET name = ?, cooked_weight_oz = ? WHERE id = ?', [name, cooked_weight_oz, id]);
+        await dbRun(req.userDb, 'DELETE FROM recipe_items WHERE recipe_id = ?', [id]);
+
+        const insertItem = 'INSERT INTO recipe_items (recipe_id, source_type, template_id, name, calories_per_unit, unit_type, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)';
+        for (const item of items) {
+            await dbRun(req.userDb, insertItem, [
+                id,
+                sanitize(item.source_type) || 'custom',
+                item.template_id || null,
+                sanitize(item.name),
+                parseFloat(item.calories_per_unit),
+                sanitize(item.unit_type) || 'ounce',
+                parseFloat(item.quantity)
+            ]);
+        }
+
+        return res.json({ status: 'success', message: 'Recipe updated' });
+    } catch (err) {
+        console.error('Recipe update error:', err);
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
+app.delete('/api/recipes/:id', async (req, res) => {
+    try {
+        const id = sanitize(req.params.id);
+        if (!id) return res.status(400).json({ status: 'error', message: 'Missing recipe ID' });
+
+        await dbRun(req.userDb, 'PRAGMA foreign_keys = ON');
+        const result = await dbRun(req.userDb, 'DELETE FROM recipes WHERE id = ?', [id]);
+        if (result.changes === 0) {
+            return res.status(404).json({ status: 'error', message: 'Recipe not found' });
+        }
+        return res.json({ status: 'success', message: 'Recipe deleted' });
+    } catch (err) {
+        console.error('Recipe delete error:', err);
         return res.status(500).json({ status: 'error', message: 'Database error' });
     }
 });
