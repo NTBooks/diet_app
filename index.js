@@ -18,6 +18,7 @@ app.use(express.static('public'));
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const LOGINS_FILE = path.join(DATA_DIR, 'logins.json');
 const LEGACY_DB = path.join(__dirname, 'diet_app.db');
+const LEGACY_MIGRATED_FILE = path.join(DATA_DIR, '.legacy_migrated');
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -173,6 +174,17 @@ const initUserTables = async (db) => {
     for (const sql of tables) {
         await dbRun(db, sql);
     }
+
+    // Sync legacy schema: add columns that were added in later migrations (meals.category, meals.unit_type)
+    const addColumnIfMissing = async (table, column, def) => {
+        try {
+            await dbRun(db, `ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+        } catch (err) {
+            if (err.message && !err.message.includes('duplicate column name')) throw err;
+        }
+    };
+    await addColumnIfMissing('meals', 'category', "TEXT DEFAULT 'Other'");
+    await addColumnIfMissing('meals', 'unit_type', "TEXT DEFAULT 'piece'");
 };
 
 // === Default Food Templates (USDA-sourced raw calorie data) ===
@@ -419,16 +431,18 @@ app.post('/api/auth/signup', async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Username already taken' });
         }
 
-        const isFirstUser = logins.length === 0;
         const legacyDbExists = fs.existsSync(LEGACY_DB);
+        const legacyNotYetMigrated = !fs.existsSync(LEGACY_MIGRATED_FILE);
 
         logins.push({ username, password });
         writeLogins(logins);
 
-        // If first user and legacy DB exists, copy it for seamless data migration
-        if (isFirstUser && legacyDbExists) {
+        // Only import diet_app.db for the first portal user; never for subsequent signups
+        const didMigrateForThisUser = legacyDbExists && legacyNotYetMigrated;
+        if (didMigrateForThisUser) {
             fs.copyFileSync(LEGACY_DB, getUserDbPath(username));
-            console.log(`Migrated legacy diet_app.db to data/${username}.db`);
+            fs.writeFileSync(LEGACY_MIGRATED_FILE, '', 'utf8');
+            console.log(`Migrated legacy diet_app.db to data/${username}.db (first portal user)`);
         }
 
         const token = generateToken();
@@ -437,12 +451,12 @@ app.post('/api/auth/signup', async (req, res) => {
 
         return res.json({
             status: 'success',
-            message: isFirstUser && legacyDbExists
+            message: didMigrateForThisUser
                 ? 'Account created with your existing data'
                 : 'Account created',
             token,
             username,
-            migratedData: isFirstUser && legacyDbExists
+            migratedData: didMigrateForThisUser
         });
     } catch (err) {
         console.error('Signup error:', err);

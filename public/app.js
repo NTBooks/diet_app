@@ -361,20 +361,45 @@ function updateLiveCalc() {
 //  MEAL SELECT / TEMPLATES
 // ==============================================
 
-async function updateMealSelect(selectedId) {
-    try {
-        const res = await apiFetch('/api/meals');
-        const data = await res.json();
-        const select = document.getElementById('mealSelect');
-        select.innerHTML = '';
-        if (!data.meals || data.meals.length === 0) {
-            const opt = document.createElement('option');
-            opt.textContent = 'No templates yet';
-            opt.disabled = true;
-            select.appendChild(opt);
-            return;
-        }
-        data.meals.forEach(meal => {
+let allMealsForSelect = [];
+
+function sortMealsByCategoryThenName(meals) {
+    return [...meals].sort((a, b) => {
+        const catA = (a.category || 'Other').toLowerCase();
+        const catB = (b.category || 'Other').toLowerCase();
+        if (catA !== catB) return catA.localeCompare(catB);
+        return (a.name || '').localeCompare(b.name || '');
+    });
+}
+
+function renderMealSelectOptions(meals, selectedId) {
+    const select = document.getElementById('mealSelect');
+    const searchInput = document.getElementById('mealTemplateSearch');
+    if (!select) return;
+
+    select.innerHTML = '';
+    if (!meals || meals.length === 0) {
+        const opt = document.createElement('option');
+        opt.textContent = searchInput && searchInput.value.trim() ? 'No matching templates' : 'No templates yet';
+        opt.disabled = true;
+        opt.value = '';
+        select.appendChild(opt);
+        updateUnitUI();
+        return;
+    }
+
+    const byCategory = {};
+    meals.forEach(meal => {
+        const cat = meal.category || 'Other';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(meal);
+    });
+
+    const categories = Object.keys(byCategory).sort((a, b) => a.localeCompare(b));
+    categories.forEach(cat => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = cat;
+        byCategory[cat].forEach(meal => {
             const option = document.createElement('option');
             option.value = meal.id;
             const unitType = meal.unit_type || 'piece';
@@ -383,12 +408,58 @@ async function updateMealSelect(selectedId) {
             option.style.backgroundColor = colors.bg;
             option.style.color = colors.text;
             if (selectedId && meal.id === selectedId) option.selected = true;
-            select.appendChild(option);
+            optgroup.appendChild(option);
         });
-        updateUnitUI();
+        select.appendChild(optgroup);
+    });
+    updateUnitUI();
+}
+
+function filterMealsBySearch(meals, query, selectedId) {
+    const q = (query || '').trim().toLowerCase();
+    if (!q) return meals;
+    const filtered = meals.filter(m => (m.name || '').toLowerCase().includes(q));
+    if (selectedId && !filtered.some(m => m.id === selectedId)) {
+        const selected = meals.find(m => m.id === selectedId);
+        if (selected) filtered.unshift(selected);
+    }
+    return filtered;
+}
+
+async function updateMealSelect(selectedId) {
+    try {
+        const res = await apiFetch('/api/meals');
+        const data = await res.json();
+        const meals = data.meals || [];
+        allMealsForSelect = sortMealsByCategoryThenName(meals);
+
+        const searchInput = document.getElementById('mealTemplateSearch');
+        const query = searchInput ? searchInput.value.trim() : '';
+        const filtered = filterMealsBySearch(allMealsForSelect, query, selectedId);
+        renderMealSelectOptions(filtered, selectedId);
     } catch (err) {
         console.error('Error loading meal select:', err);
     }
+}
+
+function setupMealTemplateSearch() {
+    const searchInput = document.getElementById('mealTemplateSearch');
+    const select = document.getElementById('mealSelect');
+    if (!searchInput || !select) return;
+
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim();
+        const selectedId = select.value ? parseInt(select.value, 10) : null;
+        const filtered = filterMealsBySearch(allMealsForSelect, query, selectedId);
+        renderMealSelectOptions(filtered, selectedId);
+    });
+
+    searchInput.addEventListener('focus', () => {
+        const query = searchInput.value.trim();
+        const selectedId = select.value ? parseInt(select.value, 10) : null;
+        const filtered = filterMealsBySearch(allMealsForSelect, query, selectedId);
+        renderMealSelectOptions(filtered, selectedId);
+    });
 }
 
 async function loadSavedMeals() {
@@ -1715,11 +1786,12 @@ async function initApp() {
     if (calEnd) calEnd.value = getLocalDate(today);
     if (calStart) calStart.value = getLocalDate(weekAgo);
 
-    // Hook up unit UI events
+    // Hook up unit UI events and meal template search
     const mealSelect = document.getElementById('mealSelect');
     const ouncesInput = document.querySelector('#logMealForm input[name="ounces"]');
     if (mealSelect) mealSelect.addEventListener('change', updateUnitUI);
     if (ouncesInput) ouncesInput.addEventListener('input', updateLiveCalc);
+    setupMealTemplateSearch();
 
     // Hook up recipe select events
     const recipeSelect = document.getElementById('recipeSelect');
