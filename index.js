@@ -5,6 +5,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -409,6 +410,7 @@ const requireAuth = async (req, res, next) => {
     }
     const session = sessions.get(token);
     req.username = session.username;
+    req.authToken = token;
     try {
         req.userDb = await getUserDb(session.username);
         next();
@@ -442,24 +444,8 @@ app.post('/api/auth/signup', async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Username already taken' });
         }
 
-        const legacyDbExists = fs.existsSync(LEGACY_DB);
-        const legacyNotYetMigrated = !fs.existsSync(LEGACY_MIGRATED_FILE);
-        const isFirstSignupEver = logins.length === 0;
-
         logins.push({ username, password });
         writeLogins(logins);
-
-        // Only import diet_app.db for the first portal user; never for subsequent signups.
-        // Require both: no marker yet AND this is the first signup (handles case where marker
-        // was never created because first user signed up before this logic existed).
-        const didMigrateForThisUser = legacyDbExists && legacyNotYetMigrated && isFirstSignupEver;
-        if (didMigrateForThisUser) {
-            fs.copyFileSync(LEGACY_DB, getUserDbPath(username));
-            console.log(`Migrated legacy diet_app.db to data/${username}.db (first portal user)`);
-        }
-        if (legacyDbExists && legacyNotYetMigrated) {
-            fs.writeFileSync(LEGACY_MIGRATED_FILE, '', 'utf8');
-        }
 
         const token = generateToken();
         sessions.set(token, { username, createdAt: Date.now() });
@@ -467,12 +453,9 @@ app.post('/api/auth/signup', async (req, res) => {
 
         return res.json({
             status: 'success',
-            message: didMigrateForThisUser
-                ? 'Account created with your existing data'
-                : 'Account created',
+            message: 'Account created',
             token,
-            username,
-            migratedData: didMigrateForThisUser
+            username
         });
     } catch (err) {
         console.error('Signup error:', err);
@@ -550,6 +533,69 @@ app.post('/api/auth/change-password', (req, res) => {
     logins[idx].password = newPassword;
     writeLogins(logins);
     return res.json({ status: 'success', message: 'Password changed successfully' });
+});
+
+// --- Account: Import/Export data (temporary import; export = full db as JSON) ---
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB max
+
+const EXPORT_TABLE_NAMES = [
+    'meals', 'meal_log', 'quick_add_log', 'blood_pressure_log', 'weight_log',
+    'user_preferences', 'exercise_log', 'meal_categories', 'meal_plans',
+    'recipes', 'recipe_items', 'closed_days'
+];
+
+app.post('/api/account/import', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file || !req.file.buffer) {
+            return res.status(400).json({ status: 'error', message: 'No file uploaded' });
+        }
+        let parsed;
+        try {
+            const text = req.file.buffer.toString('utf8');
+            parsed = JSON.parse(text);
+        } catch (parseErr) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid or corrupt JSON: ' + (parseErr.message || 'parse error')
+            });
+        }
+        if (typeof parsed !== 'object' || parsed === null) {
+            return res.status(400).json({ status: 'error', message: 'File must contain a JSON object' });
+        }
+        const session = sessions.get(req.authToken);
+        if (!session) {
+            return res.status(401).json({ status: 'error', message: 'Not authenticated' });
+        }
+        session.importedData = parsed;
+        return res.json({ status: 'success', message: 'Data imported temporarily for this session' });
+    } catch (err) {
+        console.error('Import error:', err);
+        return res.status(500).json({ status: 'error', message: 'Server error during import' });
+    }
+});
+
+app.get('/api/account/export', async (req, res) => {
+    try {
+        const db = req.userDb;
+        const out = {};
+        for (const table of EXPORT_TABLE_NAMES) {
+            try {
+                const rows = await dbAll(db, `SELECT * FROM ${table}`, []);
+                out[table] = rows;
+            } catch (e) {
+                out[table] = [];
+            }
+        }
+        const json = JSON.stringify(out, null, 2);
+        const filename = `diet_data_${new Date().toISOString().slice(0, 10)}.json`;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        return res.send(json);
+    } catch (err) {
+        console.error('Export error:', err);
+        return res.status(500).json({ status: 'error', message: 'Server error during export' });
+    }
 });
 
 // ==============================================

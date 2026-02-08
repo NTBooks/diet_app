@@ -48,12 +48,12 @@ const getCalorieDensityColors = (caloriesPerServing, ouncesPerServing, unitType)
         calPerOz = perUnit * 28.35;
     }
     // Tiers based on cal/oz equivalent
-    if (calPerOz <= 15)  return { bg: '#dcfce7', text: '#166534' }; // green  — raw veggies, leafy greens
-    if (calPerOz <= 35)  return { bg: '#ecfccb', text: '#3f6212' }; // lime   — lean proteins, light fruits
-    if (calPerOz <= 60)  return { bg: '#fef9c3', text: '#854d0e' }; // yellow — most meats, cooked grains
+    if (calPerOz <= 15) return { bg: '#dcfce7', text: '#166534' }; // green  — raw veggies, leafy greens
+    if (calPerOz <= 35) return { bg: '#ecfccb', text: '#3f6212' }; // lime   — lean proteins, light fruits
+    if (calPerOz <= 60) return { bg: '#fef9c3', text: '#854d0e' }; // yellow — most meats, cooked grains
     if (calPerOz <= 100) return { bg: '#ffedd5', text: '#9a3412' }; // orange — fatty meats, bread, honey
     if (calPerOz <= 175) return { bg: '#fee2e2', text: '#991b1b' }; // red    — nuts, peanut butter, mayo
-    return                       { bg: '#fecdd3', text: '#881337' }; // rose   — oils
+    return { bg: '#fecdd3', text: '#881337' }; // rose   — oils
 };
 
 // ==============================================
@@ -79,7 +79,7 @@ function logout() {
         fetch('/api/auth/logout', {
             method: 'POST',
             headers: { 'X-Auth-Token': token }
-        }).catch(() => {});
+        }).catch(() => { });
     }
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUsername');
@@ -166,12 +166,7 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
             localStorage.setItem('authToken', data.token);
             localStorage.setItem('currentUsername', data.username);
             form.reset();
-            if (data.migratedData) {
-                authMsg.innerHTML = '<div class="msg-success text-sm">Account created with your existing data!</div>';
-                setTimeout(() => showAppScreen(data.username), 1500);
-            } else {
-                showAppScreen(data.username);
-            }
+            showAppScreen(data.username);
         } else {
             authMsg.innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
         }
@@ -210,6 +205,64 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
         }
     } catch (err) {
         msgEl.innerHTML = `<div class="msg-error text-sm">Error: ${err.message}</div>`;
+    }
+});
+
+// Account: Import JSON (temporary) and Download data
+document.getElementById('accountImportBtn').addEventListener('click', () => {
+    document.getElementById('accountImportFile').click();
+});
+
+document.getElementById('accountImportFile').addEventListener('change', async (e) => {
+    const file = e.target && e.target.files && e.target.files[0];
+    const msgEl = document.getElementById('accountDataMsg');
+    msgEl.innerHTML = '';
+    if (!file) return;
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/account/import', {
+            method: 'POST',
+            headers: token ? { 'X-Auth-Token': token } : {},
+            body: formData
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            msgEl.innerHTML = '<div class="msg-success text-sm">' + (data.message || 'Data imported temporarily.') + '</div>';
+        } else {
+            msgEl.innerHTML = '<div class="msg-error text-sm">' + (data.message || 'Import failed.') + '</div>';
+        }
+    } catch (err) {
+        msgEl.innerHTML = '<div class="msg-error text-sm">Import error: ' + (err.message || 'connection failed') + '</div>';
+    }
+    e.target.value = '';
+});
+
+document.getElementById('accountDownloadBtn').addEventListener('click', async () => {
+    const msgEl = document.getElementById('accountDataMsg');
+    msgEl.innerHTML = '';
+    try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch('/api/account/export', {
+            headers: token ? { 'X-Auth-Token': token } : {}
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            msgEl.innerHTML = '<div class="msg-error text-sm">' + (data.message || 'Download failed') + '</div>';
+            return;
+        }
+        const blob = await res.blob();
+        const filename = res.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] || 'diet_data.json';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        msgEl.innerHTML = '<div class="msg-success text-sm">Download started.</div>';
+    } catch (err) {
+        msgEl.innerHTML = '<div class="msg-error text-sm">Download error: ' + (err.message || 'connection failed') + '</div>';
     }
 });
 
@@ -347,7 +400,7 @@ function setupAiAdvisorCopyButtons() {
     const copy = (textareaId, btnId) => {
         const el = document.getElementById(textareaId);
         if (el && el.value) {
-            navigator.clipboard.writeText(el.value).then(() => showCopyFeedback(btnId)).catch(() => {});
+            navigator.clipboard.writeText(el.value).then(() => showCopyFeedback(btnId)).catch(() => { });
         }
     };
     document.getElementById('copyWeightPrompt')?.addEventListener('click', () => copy('aiAdvisorWeightPrompt', 'copyWeightPrompt'));

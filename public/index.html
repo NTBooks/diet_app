@@ -13,8 +13,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .tab-btn {
@@ -64,7 +71,9 @@
             transition: background-color 0.15s;
         }
 
-        .btn-primary:hover { background-color: #4338ca; }
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
 
         .btn-success {
             background-color: #059669;
@@ -75,7 +84,9 @@
             transition: background-color 0.15s;
         }
 
-        .btn-success:hover { background-color: #047857; }
+        .btn-success:hover {
+            background-color: #047857;
+        }
 
         .btn-danger {
             background-color: #dc2626;
@@ -86,7 +97,9 @@
             transition: background-color 0.15s;
         }
 
-        .btn-danger:hover { background-color: #b91c1c; }
+        .btn-danger:hover {
+            background-color: #b91c1c;
+        }
 
         .btn-amber {
             background-color: #d97706;
@@ -97,7 +110,9 @@
             transition: background-color 0.15s;
         }
 
-        .btn-amber:hover { background-color: #b45309; }
+        .btn-amber:hover {
+            background-color: #b45309;
+        }
 
         .btn-purple {
             background-color: #7c3aed;
@@ -108,7 +123,9 @@
             transition: background-color 0.15s;
         }
 
-        .btn-purple:hover { background-color: #6d28d9; }
+        .btn-purple:hover {
+            background-color: #6d28d9;
+        }
 
         .btn-outline {
             background-color: transparent;
@@ -120,7 +137,9 @@
             transition: background-color 0.15s;
         }
 
-        .btn-outline:hover { background-color: #f3f4f6; }
+        .btn-outline:hover {
+            background-color: #f3f4f6;
+        }
 
         .msg-success {
             background-color: #ecfdf5;
@@ -151,7 +170,8 @@
 <body class="bg-gray-50 min-h-screen">
 
     <!-- ======================== AUTH SCREEN ======================== -->
-    <div id="authScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-400 p-4">
+    <div id="authScreen"
+        class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-400 p-4">
         <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md fade-in">
             <div class="text-center mb-6">
                 <div class="text-5xl mb-3">🍽️</div>
@@ -175,11 +195,13 @@
             <form id="loginForm" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                    <input type="text" name="username" required autocomplete="username" class="input-field" placeholder="Enter your username" />
+                    <input type="text" name="username" required autocomplete="username" class="input-field"
+                        placeholder="Enter your username" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                    <input type="password" name="password" required autocomplete="current-password" class="input-field" placeholder="Enter your password" />
+                    <input type="password" name="password" required autocomplete="current-password" class="input-field"
+                        placeholder="Enter your password" />
                 </div>
                 <button type="submit" class="w-full btn-primary py-2.5">Login</button>
             </form>
@@ -188,15 +210,18 @@
             <form id="signupForm" class="space-y-4 hidden">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Choose a Username</label>
-                    <input type="text" name="username" required autocomplete="username" class="input-field" placeholder="2-30 characters" />
+                    <input type="text" name="username" required autocomplete="username" class="input-field"
+                        placeholder="2-30 characters" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Choose a Password</label>
-                    <input type="password" name="password" required autocomplete="new-password" class="input-field" placeholder="At least 3 characters" />
+                    <input type="password" name="password" required autocomplete="new-password" class="input-field"
+                        placeholder="At least 3 characters" />
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                    <input type="password" name="confirmPassword" required class="input-field" placeholder="Re-enter password" />
+                    <input type="password" name="confirmPassword" required class="input-field"
+                        placeholder="Re-enter password" />
                 </div>
                 <button type="submit" class="w-full btn-success py-2.5">Create Account</button>
             </form>
@@ -216,7 +241,8 @@
                     <span class="text-indigo-200 text-sm hidden sm:inline">
                         Signed in as <span id="currentUser" class="text-white font-medium"></span>
                     </span>
-                    <button id="logoutBtn" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-md text-sm transition-colors">
+                    <button id="logoutBtn"
+                        class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-md text-sm transition-colors">
                         Logout
                     </button>
                 </div>
@@ -227,14 +253,22 @@
         <nav class="bg-white shadow-sm border-b sticky top-0 z-50">
             <div class="container mx-auto px-4 max-w-5xl">
                 <div class="flex overflow-x-auto gap-1 py-1.5 -mx-1">
-                    <button data-tab="today" class="tab-btn active px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Today</button>
-                    <button data-tab="health" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Health</button>
-                    <button data-tab="charts" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Charts</button>
-                    <button data-tab="templates" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Templates</button>
-                    <button data-tab="recipes" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Recipes</button>
-                    <button data-tab="reports" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Reports</button>
-                    <button data-tab="ai-advisor" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">AI Advisor</button>
-                    <button data-tab="account" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Account</button>
+                    <button data-tab="today"
+                        class="tab-btn active px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Today</button>
+                    <button data-tab="health"
+                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Health</button>
+                    <button data-tab="charts"
+                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Charts</button>
+                    <button data-tab="templates"
+                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Templates</button>
+                    <button data-tab="recipes"
+                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Recipes</button>
+                    <button data-tab="reports"
+                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Reports</button>
+                    <button data-tab="ai-advisor"
+                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">AI Advisor</button>
+                    <button data-tab="account"
+                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Account</button>
                 </div>
             </div>
         </nav>
@@ -254,12 +288,14 @@
                 </div>
                 <div class="flex-1 max-w-xs">
                     <div class="h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div id="calorieProgress" class="h-2.5 bg-green-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        <div id="calorieProgress" class="h-2.5 bg-green-500 rounded-full transition-all duration-300"
+                            style="width: 0%"></div>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 text-sm">
                     <label for="calorieGoalInput" class="text-gray-600 whitespace-nowrap">Daily goal:</label>
-                    <input id="calorieGoalInput" type="number" min="500" max="10000" step="50" class="input-field w-20 text-sm py-1" />
+                    <input id="calorieGoalInput" type="number" min="500" max="10000" step="50"
+                        class="input-field w-20 text-sm py-1" />
                     <button id="saveCalorieGoal" class="btn-outline">Save</button>
                 </div>
             </div>
@@ -279,16 +315,19 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
                             <div class="flex items-center gap-1">
                                 <input type="date" name="date" id="quickAddDate" required class="input-field text-sm" />
-                                <button type="button" class="btn-outline" onclick="document.getElementById('quickAddDate').value = getTodayLocalDate()">Today</button>
+                                <button type="button" class="btn-outline"
+                                    onclick="document.getElementById('quickAddDate').value = getTodayLocalDate()">Today</button>
                             </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Food Name</label>
-                            <input type="text" name="name" placeholder="e.g., Snickers bar" required class="input-field text-sm" />
+                            <input type="text" name="name" placeholder="e.g., Snickers bar" required
+                                class="input-field text-sm" />
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Calories</label>
-                            <input type="number" name="calories" step="0.01" placeholder="e.g., 250" required inputmode="decimal" class="input-field text-sm" />
+                            <input type="number" name="calories" step="0.01" placeholder="e.g., 250" required
+                                inputmode="decimal" class="input-field text-sm" />
                         </div>
                         <div class="flex items-end">
                             <button type="submit" class="w-full btn-amber py-2 text-sm">Quick Add</button>
@@ -306,21 +345,27 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
                             <div class="flex items-center gap-1">
                                 <input type="date" name="date" id="logDate" required class="input-field text-sm" />
-                                <button type="button" class="btn-outline" onclick="document.getElementById('logDate').value = getTodayLocalDate()">Today</button>
+                                <button type="button" class="btn-outline"
+                                    onclick="document.getElementById('logDate').value = getTodayLocalDate()">Today</button>
                             </div>
                         </div>
                         <div class="relative">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Food Template</label>
-                            <input type="text" id="mealTemplateCombobox" placeholder="Type to search templates..." autocomplete="off" class="input-field text-sm w-full" aria-expanded="false" aria-haspopup="listbox" aria-controls="mealTemplateDropdown" />
+                            <input type="text" id="mealTemplateCombobox" placeholder="Type to search templates..."
+                                autocomplete="off" class="input-field text-sm w-full" aria-expanded="false"
+                                aria-haspopup="listbox" aria-controls="mealTemplateDropdown" />
                             <input type="hidden" name="meal_id" id="mealIdHidden" />
-                            <div id="mealTemplateDropdown" class="absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg hidden" role="listbox"></div>
+                            <div id="mealTemplateDropdown"
+                                class="absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg hidden"
+                                role="listbox"></div>
                             <p id="selectedUnitHint" class="text-xs text-gray-400 mt-1"></p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Quantity <span id="selectedUnitLabel" class="text-gray-400"></span>
                             </label>
-                            <input type="number" name="ounces" step="0.01" required inputmode="decimal" class="input-field text-sm" />
+                            <input type="number" name="ounces" step="0.01" required inputmode="decimal"
+                                class="input-field text-sm" />
                             <div id="liveCalc" class="text-xs text-indigo-600 mt-1 min-h-[16px] font-medium"></div>
                         </div>
                         <div class="flex items-end">
@@ -338,8 +383,10 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
                             <div class="flex items-center gap-1">
-                                <input type="date" name="date" id="logRecipeDate" required class="input-field text-sm" />
-                                <button type="button" class="btn-outline" onclick="document.getElementById('logRecipeDate').value = getTodayLocalDate()">Today</button>
+                                <input type="date" name="date" id="logRecipeDate" required
+                                    class="input-field text-sm" />
+                                <button type="button" class="btn-outline"
+                                    onclick="document.getElementById('logRecipeDate').value = getTodayLocalDate()">Today</button>
                             </div>
                         </div>
                         <div>
@@ -351,8 +398,10 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Cooked Oz Eaten
                             </label>
-                            <input type="number" name="cooked_oz" step="0.01" required inputmode="decimal" class="input-field text-sm" />
-                            <div id="recipeCalcLive" class="text-xs text-indigo-600 mt-1 min-h-[16px] font-medium"></div>
+                            <input type="number" name="cooked_oz" step="0.01" required inputmode="decimal"
+                                class="input-field text-sm" />
+                            <div id="recipeCalcLive" class="text-xs text-indigo-600 mt-1 min-h-[16px] font-medium">
+                            </div>
                         </div>
                         <div class="flex items-end">
                             <button type="submit" class="w-full btn-success py-2 text-sm">Log Recipe</button>
@@ -370,11 +419,15 @@
                 <!-- Calendar: Wayback-style year view, days with data are links -->
                 <div class="card mt-4">
                     <h2 class="text-xl font-bold text-gray-800 mb-3">Calendar</h2>
-                    <p class="text-gray-500 text-sm mb-3">All 12 months for the year. Days with logged food are links—click to load that day into the food log above.</p>
+                    <p class="text-gray-500 text-sm mb-3">All 12 months for the year. Days with logged food are
+                        links—click to load that day into the food log above.</p>
                     <div class="flex flex-wrap items-center gap-2 mb-3">
-                        <button type="button" id="calendarPrevYear" class="btn-outline p-2" title="Previous year" aria-label="Previous year">&larr;</button>
-                        <span id="calendarYearLabel" class="min-w-[4rem] text-center font-semibold text-gray-800 text-lg"></span>
-                        <button type="button" id="calendarNextYear" class="btn-outline p-2" title="Next year" aria-label="Next year">&rarr;</button>
+                        <button type="button" id="calendarPrevYear" class="btn-outline p-2" title="Previous year"
+                            aria-label="Previous year">&larr;</button>
+                        <span id="calendarYearLabel"
+                            class="min-w-[4rem] text-center font-semibold text-gray-800 text-lg"></span>
+                        <button type="button" id="calendarNextYear" class="btn-outline p-2" title="Next year"
+                            aria-label="Next year">&rarr;</button>
                     </div>
                     <div id="foodLogCalendar" class="overflow-x-auto"></div>
                 </div>
@@ -390,13 +443,17 @@
                         <div>
                             <label for="weightLogDate" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
                             <div class="flex items-center gap-1">
-                                <input type="date" id="weightLogDate" name="date" class="input-field text-sm" required />
-                                <button type="button" class="btn-outline" onclick="document.getElementById('weightLogDate').value = getTodayLocalDate()">Today</button>
+                                <input type="date" id="weightLogDate" name="date" class="input-field text-sm"
+                                    required />
+                                <button type="button" class="btn-outline"
+                                    onclick="document.getElementById('weightLogDate').value = getTodayLocalDate()">Today</button>
                             </div>
                         </div>
                         <div>
-                            <label for="weightLogWeight" class="block text-sm font-medium text-gray-700 mb-1">Weight (lbs)</label>
-                            <input type="number" id="weightLogWeight" name="weight" class="input-field text-sm w-28" min="50" max="1000" step="0.1" required inputmode="decimal" />
+                            <label for="weightLogWeight" class="block text-sm font-medium text-gray-700 mb-1">Weight
+                                (lbs)</label>
+                            <input type="number" id="weightLogWeight" name="weight" class="input-field text-sm w-28"
+                                min="50" max="1000" step="0.1" required inputmode="decimal" />
                         </div>
                         <button type="submit" class="btn-primary py-2 text-sm">Log Weight</button>
                     </form>
@@ -413,12 +470,14 @@
                     <form id="bloodPressureForm" class="grid gap-3 md:grid-cols-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Systolic (Top)</label>
-                            <input type="number" name="systolic" min="70" max="200" placeholder="e.g., 120" required class="input-field text-sm" />
+                            <input type="number" name="systolic" min="70" max="200" placeholder="e.g., 120" required
+                                class="input-field text-sm" />
                             <p class="text-xs text-gray-400 mt-1">Normal: 90-140</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Diastolic (Bottom)</label>
-                            <input type="number" name="diastolic" min="40" max="130" placeholder="e.g., 80" required class="input-field text-sm" />
+                            <input type="number" name="diastolic" min="40" max="130" placeholder="e.g., 80" required
+                                class="input-field text-sm" />
                             <p class="text-xs text-gray-400 mt-1">Normal: 60-90</p>
                         </div>
                         <div class="flex items-end">
@@ -482,11 +541,13 @@
                         <div class="grid gap-3 md:grid-cols-3">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Calories per Unit</label>
-                                <input type="number" name="calories_per_serving" step="0.01" required inputmode="decimal" class="input-field text-sm" />
+                                <input type="number" name="calories_per_serving" step="0.01" required
+                                    inputmode="decimal" class="input-field text-sm" />
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Units per Serving</label>
-                                <input type="number" name="ounces_per_serving" step="0.01" required inputmode="decimal" class="input-field text-sm" />
+                                <input type="number" name="ounces_per_serving" step="0.01" required inputmode="decimal"
+                                    class="input-field text-sm" />
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Unit Type</label>
@@ -525,13 +586,15 @@
                 <!-- Recipe Builder -->
                 <div class="card">
                     <h2 class="text-xl font-bold text-gray-800 mb-1">Recipe Builder</h2>
-                    <p class="text-gray-500 text-sm mb-4">Build a recipe from templates and custom items, then enter the cooked weight to get cal/oz</p>
+                    <p class="text-gray-500 text-sm mb-4">Build a recipe from templates and custom items, then enter the
+                        cooked weight to get cal/oz</p>
 
                     <div class="space-y-4">
                         <!-- Recipe Name -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Recipe Name</label>
-                            <input type="text" id="recipeName" placeholder="e.g., Chicken Stir Fry" class="input-field text-sm" />
+                            <input type="text" id="recipeName" placeholder="e.g., Chicken Stir Fry"
+                                class="input-field text-sm" />
                         </div>
 
                         <!-- Add from Template -->
@@ -542,10 +605,12 @@
                                     <select id="recipeTemplateSelect" class="input-field text-sm"></select>
                                 </div>
                                 <div>
-                                    <input type="number" id="recipeTemplateQty" step="0.01" placeholder="Qty" inputmode="decimal" class="input-field text-sm" />
+                                    <input type="number" id="recipeTemplateQty" step="0.01" placeholder="Qty"
+                                        inputmode="decimal" class="input-field text-sm" />
                                 </div>
                                 <div>
-                                    <button type="button" id="addTemplateToRecipeBtn" class="w-full btn-primary py-2 text-sm">+ Add</button>
+                                    <button type="button" id="addTemplateToRecipeBtn"
+                                        class="w-full btn-primary py-2 text-sm">+ Add</button>
                                 </div>
                             </div>
                         </div>
@@ -555,10 +620,12 @@
                             <h3 class="text-sm font-semibold text-gray-700 mb-2">Add Custom Item</h3>
                             <div class="grid gap-2 md:grid-cols-5">
                                 <div>
-                                    <input type="text" id="recipeCustomName" placeholder="Item name" class="input-field text-sm" />
+                                    <input type="text" id="recipeCustomName" placeholder="Item name"
+                                        class="input-field text-sm" />
                                 </div>
                                 <div>
-                                    <input type="number" id="recipeCustomCal" step="0.01" placeholder="Cal/unit" inputmode="decimal" class="input-field text-sm" />
+                                    <input type="number" id="recipeCustomCal" step="0.01" placeholder="Cal/unit"
+                                        inputmode="decimal" class="input-field text-sm" />
                                 </div>
                                 <div>
                                     <select id="recipeCustomUnit" class="input-field text-sm">
@@ -571,39 +638,47 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <input type="number" id="recipeCustomQty" step="0.01" placeholder="Qty" inputmode="decimal" class="input-field text-sm" />
+                                    <input type="number" id="recipeCustomQty" step="0.01" placeholder="Qty"
+                                        inputmode="decimal" class="input-field text-sm" />
                                 </div>
                                 <div>
-                                    <button type="button" id="addCustomToRecipeBtn" class="w-full btn-amber py-2 text-sm">+ Add</button>
+                                    <button type="button" id="addCustomToRecipeBtn"
+                                        class="w-full btn-amber py-2 text-sm">+ Add</button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Recipe Line Items -->
                         <div id="recipeItemsContainer">
-                            <div class="text-gray-400 text-center py-4 text-sm">No items added yet. Add items above to build your recipe.</div>
+                            <div class="text-gray-400 text-center py-4 text-sm">No items added yet. Add items above to
+                                build your recipe.</div>
                         </div>
 
                         <!-- Cooked Weight & Summary -->
                         <div class="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
                             <div class="grid gap-3 md:grid-cols-3 items-end">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Total Raw Calories</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Total Raw
+                                        Calories</label>
                                     <div id="recipeTotalCalories" class="text-2xl font-bold text-indigo-700">0 cal</div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Cooked Total Weight (oz)</label>
-                                    <input type="number" id="recipeCookedWeight" step="0.01" placeholder="e.g., 32" inputmode="decimal" class="input-field text-sm" />
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Cooked Total Weight
+                                        (oz)</label>
+                                    <input type="number" id="recipeCookedWeight" step="0.01" placeholder="e.g., 32"
+                                        inputmode="decimal" class="input-field text-sm" />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Calories per Cooked Oz</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Calories per Cooked
+                                        Oz</label>
                                     <div id="recipeCalPerOz" class="text-2xl font-bold text-green-700">-- cal/oz</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Save Button -->
-                        <button type="button" id="saveRecipeBtn" class="w-full btn-success py-2.5 text-sm font-semibold">Save Recipe</button>
+                        <button type="button" id="saveRecipeBtn"
+                            class="w-full btn-success py-2.5 text-sm font-semibold">Save Recipe</button>
                         <div id="saveRecipeMsg" class="mt-1"></div>
                     </div>
                 </div>
@@ -611,7 +686,8 @@
                 <!-- Saved Recipes -->
                 <div class="card">
                     <h2 class="text-xl font-bold text-gray-800 mb-3">Saved Recipes</h2>
-                    <p class="text-gray-500 text-sm mb-3">Your saved recipes with calculated calories per cooked ounce.</p>
+                    <p class="text-gray-500 text-sm mb-3">Your saved recipes with calculated calories per cooked ounce.
+                    </p>
                     <div id="savedRecipes"></div>
                 </div>
             </div>
@@ -667,31 +743,43 @@
 
             <!-- ======================== TAB: AI ADVISOR ======================== -->
             <div id="tab-ai-advisor" class="tab-content hidden fade-in">
-                <p class="text-gray-500 text-sm mb-2">Copy a prompt below and paste it (with your data) into your favorite LLM site for personalized advice.</p>
-                <p class="text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm mb-4">This feature is for informational purposes only and is not medical advice. Always consult your healthcare provider for medical advice.</p>
+                <p class="text-gray-500 text-sm mb-2">Copy a prompt below and paste it (with your data) into your
+                    favorite LLM site for personalized advice.</p>
+                <p class="text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm mb-4">This
+                    feature is for informational purposes only and is not medical advice. Always consult your healthcare
+                    provider for medical advice.</p>
 
                 <!-- Weight log prompt -->
                 <div class="card">
                     <h2 class="text-xl font-bold text-gray-800 mb-1">Weight log trends</h2>
-                    <p class="text-gray-500 text-sm mb-3">Ask an LLM to look at your weight log and identify trends or patterns. The prompt gently notes that fluctuations and plateaus are normal.</p>
-                    <textarea id="aiAdvisorWeightPrompt" readonly class="input-field font-mono text-sm min-h-[140px] resize-y w-full"></textarea>
-                    <div class="mt-2 flex justify-end"><button type="button" id="copyWeightPrompt" class="btn-outline text-xs">Copy</button></div>
+                    <p class="text-gray-500 text-sm mb-3">Ask an LLM to look at your weight log and identify trends or
+                        patterns. The prompt gently notes that fluctuations and plateaus are normal.</p>
+                    <textarea id="aiAdvisorWeightPrompt" readonly
+                        class="input-field font-mono text-sm min-h-[140px] resize-y w-full"></textarea>
+                    <div class="mt-2 flex justify-end"><button type="button" id="copyWeightPrompt"
+                            class="btn-outline text-xs">Copy</button></div>
                 </div>
 
                 <!-- Top foods + healthy advice prompt -->
                 <div class="card">
                     <h2 class="text-xl font-bold text-gray-800 mb-1">Eating habits & healthy advice</h2>
-                    <p class="text-gray-500 text-sm mb-3">Includes how often your top 50 logged foods are eaten and asks for healthy advice based on that.</p>
-                    <textarea id="aiAdvisorFoodsPrompt" readonly class="input-field font-mono text-sm min-h-[180px] resize-y w-full"></textarea>
-                    <div class="mt-2 flex justify-end"><button type="button" id="copyFoodsPrompt" class="btn-outline text-xs">Copy</button></div>
+                    <p class="text-gray-500 text-sm mb-3">Includes how often your top 50 logged foods are eaten and asks
+                        for healthy advice based on that.</p>
+                    <textarea id="aiAdvisorFoodsPrompt" readonly
+                        class="input-field font-mono text-sm min-h-[180px] resize-y w-full"></textarea>
+                    <div class="mt-2 flex justify-end"><button type="button" id="copyFoodsPrompt"
+                            class="btn-outline text-xs">Copy</button></div>
                 </div>
 
                 <!-- Recipe suggestions from favorites prompt -->
                 <div class="card">
                     <h2 class="text-xl font-bold text-gray-800 mb-1">Recipe suggestions from favorite foods</h2>
-                    <p class="text-gray-500 text-sm mb-3">Uses your most-logged foods and asks an LLM to suggest recipes you might enjoy.</p>
-                    <textarea id="aiAdvisorRecipesPrompt" readonly class="input-field font-mono text-sm min-h-[140px] resize-y w-full"></textarea>
-                    <div class="mt-2 flex justify-end"><button type="button" id="copyRecipesPrompt" class="btn-outline text-xs">Copy</button></div>
+                    <p class="text-gray-500 text-sm mb-3">Uses your most-logged foods and asks an LLM to suggest recipes
+                        you might enjoy.</p>
+                    <textarea id="aiAdvisorRecipesPrompt" readonly
+                        class="input-field font-mono text-sm min-h-[140px] resize-y w-full"></textarea>
+                    <div class="mt-2 flex justify-end"><button type="button" id="copyRecipesPrompt"
+                            class="btn-outline text-xs">Copy</button></div>
                 </div>
             </div>
 
@@ -715,7 +803,8 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                            <input type="password" name="newPassword" required class="input-field text-sm" placeholder="At least 3 characters" />
+                            <input type="password" name="newPassword" required class="input-field text-sm"
+                                placeholder="At least 3 characters" />
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
@@ -724,6 +813,15 @@
                         <button type="submit" class="w-full btn-primary py-2 text-sm">Change Password</button>
                     </form>
                     <div id="changePasswordMsg" class="mt-3"></div>
+
+                    <h3 class="text-lg font-semibold text-gray-800 mt-8 mb-3">Data</h3>
+                    <p class="text-gray-500 text-sm mb-3">Import a JSON backup temporarily for this session, or download your data as JSON.</p>
+                    <div class="flex flex-wrap gap-3 items-center">
+                        <input type="file" id="accountImportFile" accept=".json,application/json" class="hidden" />
+                        <button type="button" id="accountImportBtn" class="btn-secondary py-2 px-4 text-sm">Import JSON…</button>
+                        <button type="button" id="accountDownloadBtn" class="btn-secondary py-2 px-4 text-sm">Download my data (JSON)</button>
+                    </div>
+                    <div id="accountDataMsg" class="mt-3"></div>
                 </div>
             </div>
 
