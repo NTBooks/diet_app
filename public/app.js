@@ -229,7 +229,8 @@ document.getElementById('accountImportFile').addEventListener('change', async (e
         });
         const data = await res.json();
         if (data.status === 'success') {
-            msgEl.innerHTML = '<div class="msg-success text-sm">' + (data.message || 'Data imported temporarily.') + '</div>';
+            msgEl.innerHTML = '<div class="msg-success text-sm">' + (data.message || 'Data imported permanently.') + '</div>';
+            await initApp();
         } else {
             msgEl.innerHTML = '<div class="msg-error text-sm">' + (data.message || 'Import failed.') + '</div>';
         }
@@ -243,13 +244,16 @@ document.getElementById('accountDownloadBtn').addEventListener('click', async ()
     const msgEl = document.getElementById('accountDataMsg');
     msgEl.innerHTML = '';
     try {
-        const token = localStorage.getItem('authToken');
-        const res = await fetch('/api/account/export', {
-            headers: token ? { 'X-Auth-Token': token } : {}
-        });
+        const res = await apiFetch('/api/account/export');
         if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            msgEl.innerHTML = '<div class="msg-error text-sm">' + (data.message || 'Download failed') + '</div>';
+            let msg = 'Download failed';
+            try {
+                const data = await res.json();
+                if (data && data.message) msg = data.message;
+            } catch (_) {
+                msg = 'Download failed (' + res.status + ')';
+            }
+            msgEl.innerHTML = '<div class="msg-error text-sm">' + msg + '</div>';
             return;
         }
         const blob = await res.blob();
@@ -262,7 +266,7 @@ document.getElementById('accountDownloadBtn').addEventListener('click', async ()
         URL.revokeObjectURL(url);
         msgEl.innerHTML = '<div class="msg-success text-sm">Download started.</div>';
     } catch (err) {
-        msgEl.innerHTML = '<div class="msg-error text-sm">Download error: ' + (err.message || 'connection failed') + '</div>';
+        msgEl.innerHTML = '<div class="msg-error text-sm">' + (err.message || 'Download error') + '</div>';
     }
 });
 

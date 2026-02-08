@@ -535,7 +535,7 @@ app.post('/api/auth/change-password', (req, res) => {
     return res.json({ status: 'success', message: 'Password changed successfully' });
 });
 
-// --- Account: Import/Export data (temporary import; export = full db as JSON) ---
+// --- Account: Import/Export data (permanent import; export = full db as JSON) ---
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB max
 
@@ -544,6 +544,8 @@ const EXPORT_TABLE_NAMES = [
     'user_preferences', 'exercise_log', 'meal_categories', 'meal_plans',
     'recipes', 'recipe_items', 'closed_days'
 ];
+
+const safeColumnName = (name) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
 
 app.post('/api/account/import', upload.single('file'), async (req, res) => {
     try {
@@ -563,12 +565,36 @@ app.post('/api/account/import', upload.single('file'), async (req, res) => {
         if (typeof parsed !== 'object' || parsed === null) {
             return res.status(400).json({ status: 'error', message: 'File must contain a JSON object' });
         }
-        const session = sessions.get(req.authToken);
-        if (!session) {
-            return res.status(401).json({ status: 'error', message: 'Not authenticated' });
+        const db = req.userDb;
+        if (!db) {
+            return res.status(500).json({ status: 'error', message: 'Database not available' });
         }
-        session.importedData = parsed;
-        return res.json({ status: 'success', message: 'Data imported temporarily for this session' });
+        await dbRun(db, 'PRAGMA foreign_keys = OFF');
+        let totalRows = 0;
+        for (const table of EXPORT_TABLE_NAMES) {
+            if (!Object.prototype.hasOwnProperty.call(parsed, table)) continue;
+            const rows = parsed[table];
+            if (!Array.isArray(rows)) continue;
+            await dbRun(db, `DELETE FROM ${table}`, []);
+            if (rows.length === 0) continue;
+            const first = rows[0];
+            if (typeof first !== 'object' || first === null) continue;
+            const columns = Object.keys(first).filter(safeColumnName);
+            if (columns.length === 0) continue;
+            const placeholders = columns.map(() => '?').join(', ');
+            const colList = columns.join(', ');
+            for (const row of rows) {
+                const values = columns.map((col) => row[col]);
+                if (values.some((v) => v === undefined)) continue;
+                await dbRun(db, `INSERT INTO ${table} (${colList}) VALUES (${placeholders})`, values);
+                totalRows += 1;
+            }
+        }
+        await dbRun(db, 'PRAGMA foreign_keys = ON');
+        return res.json({
+            status: 'success',
+            message: 'Data imported permanently. ' + totalRows + ' row(s) saved.'
+        });
     } catch (err) {
         console.error('Import error:', err);
         return res.status(500).json({ status: 'error', message: 'Server error during import' });
@@ -578,11 +604,14 @@ app.post('/api/account/import', upload.single('file'), async (req, res) => {
 app.get('/api/account/export', async (req, res) => {
     try {
         const db = req.userDb;
+        if (!db) {
+            return res.status(500).json({ status: 'error', message: 'Database not available' });
+        }
         const out = {};
         for (const table of EXPORT_TABLE_NAMES) {
             try {
                 const rows = await dbAll(db, `SELECT * FROM ${table}`, []);
-                out[table] = rows;
+                out[table] = Array.isArray(rows) ? rows : [];
             } catch (e) {
                 out[table] = [];
             }
