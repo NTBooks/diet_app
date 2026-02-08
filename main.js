@@ -15,7 +15,7 @@ function createWindow() {
             enableRemoteModule: false
         },
         icon: path.join(__dirname, 'public', 'icon.png'), // Optional: add an icon
-        title: 'Diet App'
+        title: 'Dead Weight'
     });
 
     // Load the app

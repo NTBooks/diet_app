@@ -1,11 +1,10 @@
-# Diet App
+# Dead Weight
 
-A comprehensive diet tracking application with AI-powered calorie lookup, meal logging, weight tracking, and blood pressure monitoring.
+A comprehensive diet tracking application with meal logging, weight tracking, and blood pressure monitoring.
 
 ## Features
 
 - 🍽️ **Meal Management**: Add and manage meal templates with calories and serving sizes
-- 🤖 **AI Calorie Lookup**: Get calorie estimates for any food using Ollama AI
 - 📝 **Daily Logging**: Log meals eaten and quick add items
 - ⚖️ **Weight Tracking**: Daily weight logging with history
 - ❤️ **Blood Pressure**: Monitor blood pressure readings with categorization
@@ -58,14 +57,6 @@ A comprehensive diet tracking application with AI-powered calorie lookup, meal l
 - **Development**: `npm run dev` (starts server + Electron)
 - **Server only**: `npm run server` (for web browser access)
 - **Production**: Run the built executable from `dist` folder
-
-### Ollama Setup
-
-The app uses Ollama for AI calorie lookup. If you encounter a 403 error:
-
-1. The error message will show an IPv6 address
-2. Add that IPv6 address to your Cloudflare allowlist
-3. The app will automatically retry the request
 
 ### Database
 

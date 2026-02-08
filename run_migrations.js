@@ -1,7 +1,7 @@
 const DatabaseMigration = require('./migration_system');
 
 async function runMigrations() {
-    console.log('=== Diet App Database Migration Tool ===\n');
+    console.log('=== Dead Weight Database Migration Tool ===\n');
 
     const migration = new DatabaseMigration();
 

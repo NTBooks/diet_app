@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Diet App</title>
+    <title>Dead Weight</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
     <style>
@@ -155,7 +155,7 @@
         <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md fade-in">
             <div class="text-center mb-6">
                 <div class="text-5xl mb-3">🍽️</div>
-                <h1 class="text-2xl font-bold text-gray-800">Diet App</h1>
+                <h1 class="text-2xl font-bold text-gray-800">Dead Weight</h1>
                 <p class="text-gray-500 text-sm mt-1">Track your nutrition, weight, and health</p>
             </div>
 
@@ -211,7 +211,7 @@
         <!-- Header -->
         <header class="bg-indigo-700 text-white shadow-lg">
             <div class="container mx-auto px-4 py-3 flex items-center justify-between max-w-5xl">
-                <h1 class="text-lg font-bold flex items-center gap-2">🍽️ Diet App</h1>
+                <h1 class="text-lg font-bold flex items-center gap-2">🍽️ Dead Weight</h1>
                 <div class="flex items-center gap-3">
                     <span class="text-indigo-200 text-sm hidden sm:inline">
                         Signed in as <span id="currentUser" class="text-white font-medium"></span>
@@ -233,6 +233,7 @@
                     <button data-tab="templates" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Templates</button>
                     <button data-tab="recipes" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Recipes</button>
                     <button data-tab="reports" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Reports</button>
+                    <button data-tab="ai-advisor" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">AI Advisor</button>
                     <button data-tab="account" class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Account</button>
                 </div>
             </div>
@@ -265,6 +266,9 @@
 
             <!-- ======================== TAB: TODAY ======================== -->
             <div id="tab-today" class="tab-content fade-in">
+
+                <!-- Complete day (filled by app.js) -->
+                <div id="completeDaySection" class="card mb-4"></div>
 
                 <!-- Quick Add -->
                 <div class="card">
@@ -305,10 +309,11 @@
                                 <button type="button" class="btn-outline" onclick="document.getElementById('logDate').value = getTodayLocalDate()">Today</button>
                             </div>
                         </div>
-                        <div>
+                        <div class="relative">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Food Template</label>
-                            <input type="text" id="mealTemplateSearch" placeholder="Search templates..." autocomplete="off" class="input-field text-sm mb-1" />
-                            <select name="meal_id" id="mealSelect" required class="input-field text-sm"></select>
+                            <input type="text" id="mealTemplateCombobox" placeholder="Type to search templates..." autocomplete="off" class="input-field text-sm w-full" aria-expanded="false" aria-haspopup="listbox" aria-controls="mealTemplateDropdown" />
+                            <input type="hidden" name="meal_id" id="mealIdHidden" />
+                            <div id="mealTemplateDropdown" class="absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-lg hidden" role="listbox"></div>
                             <p id="selectedUnitHint" class="text-xs text-gray-400 mt-1"></p>
                         </div>
                         <div>
@@ -360,6 +365,18 @@
                 <div class="card">
                     <h2 class="text-xl font-bold text-gray-800 mb-3">Today's Food Log</h2>
                     <div id="todayMeals"></div>
+                </div>
+
+                <!-- Calendar: Wayback-style year view, days with data are links -->
+                <div class="card mt-4">
+                    <h2 class="text-xl font-bold text-gray-800 mb-3">Calendar</h2>
+                    <p class="text-gray-500 text-sm mb-3">All 12 months for the year. Days with logged food are links—click to load that day into the food log above.</p>
+                    <div class="flex flex-wrap items-center gap-2 mb-3">
+                        <button type="button" id="calendarPrevYear" class="btn-outline p-2" title="Previous year" aria-label="Previous year">&larr;</button>
+                        <span id="calendarYearLabel" class="min-w-[4rem] text-center font-semibold text-gray-800 text-lg"></span>
+                        <button type="button" id="calendarNextYear" class="btn-outline p-2" title="Next year" aria-label="Next year">&rarr;</button>
+                    </div>
+                    <div id="foodLogCalendar" class="overflow-x-auto"></div>
                 </div>
             </div>
 
@@ -453,26 +470,6 @@
 
             <!-- ======================== TAB: TEMPLATES ======================== -->
             <div id="tab-templates" class="tab-content hidden fade-in">
-
-                <!-- AI Calorie Lookup -->
-                <div class="card">
-                    <h2 class="text-xl font-bold text-gray-800 mb-1">AI Calorie Lookup</h2>
-                    <p class="text-gray-500 text-sm mb-4">Get an AI estimate for any food</p>
-                    <form id="lookupForm" class="grid gap-3 md:grid-cols-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Food Name</label>
-                            <input type="text" name="foodName" placeholder="e.g., apple, chicken breast" required class="input-field text-sm" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Portion Size</label>
-                            <input type="text" name="portionSize" placeholder="e.g., 1 medium, 4 oz" required class="input-field text-sm" />
-                        </div>
-                        <div class="flex items-end">
-                            <button type="submit" class="w-full btn-success py-2 text-sm">Lookup Calories</button>
-                        </div>
-                    </form>
-                    <div id="lookupResult" class="mt-4"></div>
-                </div>
 
                 <!-- Add New Food Template -->
                 <div class="card">
@@ -665,6 +662,36 @@
                             <button id="downloadReport" class="btn-purple text-sm">Download PDF</button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ======================== TAB: AI ADVISOR ======================== -->
+            <div id="tab-ai-advisor" class="tab-content hidden fade-in">
+                <p class="text-gray-500 text-sm mb-2">Copy a prompt below and paste it (with your data) into your favorite LLM site for personalized advice.</p>
+                <p class="text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm mb-4">This feature is for informational purposes only and is not medical advice. Always consult your healthcare provider for medical advice.</p>
+
+                <!-- Weight log prompt -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Weight log trends</h2>
+                    <p class="text-gray-500 text-sm mb-3">Ask an LLM to look at your weight log and identify trends or patterns. The prompt gently notes that fluctuations and plateaus are normal.</p>
+                    <textarea id="aiAdvisorWeightPrompt" readonly class="input-field font-mono text-sm min-h-[140px] resize-y w-full"></textarea>
+                    <div class="mt-2 flex justify-end"><button type="button" id="copyWeightPrompt" class="btn-outline text-xs">Copy</button></div>
+                </div>
+
+                <!-- Top foods + healthy advice prompt -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Eating habits & healthy advice</h2>
+                    <p class="text-gray-500 text-sm mb-3">Includes how often your top 50 logged foods are eaten and asks for healthy advice based on that.</p>
+                    <textarea id="aiAdvisorFoodsPrompt" readonly class="input-field font-mono text-sm min-h-[180px] resize-y w-full"></textarea>
+                    <div class="mt-2 flex justify-end"><button type="button" id="copyFoodsPrompt" class="btn-outline text-xs">Copy</button></div>
+                </div>
+
+                <!-- Recipe suggestions from favorites prompt -->
+                <div class="card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-1">Recipe suggestions from favorite foods</h2>
+                    <p class="text-gray-500 text-sm mb-3">Uses your most-logged foods and asks an LLM to suggest recipes you might enjoy.</p>
+                    <textarea id="aiAdvisorRecipesPrompt" readonly class="input-field font-mono text-sm min-h-[140px] resize-y w-full"></textarea>
+                    <div class="mt-2 flex justify-end"><button type="button" id="copyRecipesPrompt" class="btn-outline text-xs">Copy</button></div>
                 </div>
             </div>
 

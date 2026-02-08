@@ -2,7 +2,6 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -35,6 +34,14 @@ if (fs.existsSync(LEGACY_LOGINS) && !fs.existsSync(LOGINS_FILE)) {
 // Ensure logins.json exists
 if (!fs.existsSync(LOGINS_FILE)) {
     fs.writeFileSync(LOGINS_FILE, '[]', 'utf8');
+}
+
+// If we already have portal users but the legacy-migrated marker was never set (e.g. first user
+// signed up before this logic existed), set it now so no subsequent signup gets legacy data.
+const loginsAtStartup = (() => { try { return JSON.parse(fs.readFileSync(LOGINS_FILE, 'utf8')); } catch { return []; } })();
+if (fs.existsSync(LEGACY_DB) && loginsAtStartup.length > 0 && !fs.existsSync(LEGACY_MIGRATED_FILE)) {
+    fs.writeFileSync(LEGACY_MIGRATED_FILE, '', 'utf8');
+    console.log('Set legacy migration marker (existing users present); no new signups will receive legacy data.');
 }
 
 // === Promisified SQLite Helpers ===
@@ -168,6 +175,10 @@ const initUserTables = async (db) => {
             unit_type TEXT NOT NULL DEFAULT 'ounce',
             quantity REAL NOT NULL,
             FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+        )`,
+        `CREATE TABLE IF NOT EXISTS closed_days (
+            date TEXT NOT NULL PRIMARY KEY,
+            closed_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`
     ];
     await dbRun(db, 'PRAGMA foreign_keys = ON');
@@ -433,16 +444,21 @@ app.post('/api/auth/signup', async (req, res) => {
 
         const legacyDbExists = fs.existsSync(LEGACY_DB);
         const legacyNotYetMigrated = !fs.existsSync(LEGACY_MIGRATED_FILE);
+        const isFirstSignupEver = logins.length === 0;
 
         logins.push({ username, password });
         writeLogins(logins);
 
-        // Only import diet_app.db for the first portal user; never for subsequent signups
-        const didMigrateForThisUser = legacyDbExists && legacyNotYetMigrated;
+        // Only import diet_app.db for the first portal user; never for subsequent signups.
+        // Require both: no marker yet AND this is the first signup (handles case where marker
+        // was never created because first user signed up before this logic existed).
+        const didMigrateForThisUser = legacyDbExists && legacyNotYetMigrated && isFirstSignupEver;
         if (didMigrateForThisUser) {
             fs.copyFileSync(LEGACY_DB, getUserDbPath(username));
-            fs.writeFileSync(LEGACY_MIGRATED_FILE, '', 'utf8');
             console.log(`Migrated legacy diet_app.db to data/${username}.db (first portal user)`);
+        }
+        if (legacyDbExists && legacyNotYetMigrated) {
+            fs.writeFileSync(LEGACY_MIGRATED_FILE, '', 'utf8');
         }
 
         const token = generateToken();
@@ -692,6 +708,49 @@ app.delete('/api/quick_add/:id', async (req, res) => {
     }
 });
 
+// --- Close day (mark day log complete) ---
+
+app.post('/api/close_day', async (req, res) => {
+    try {
+        const date = sanitize(req.body.date);
+        if (!date) return res.status(400).json({ status: 'error', message: 'Missing date parameter' });
+
+        await dbRun(req.userDb,
+            'INSERT OR REPLACE INTO closed_days (date, closed_at) VALUES (?, CURRENT_TIMESTAMP)',
+            [date]
+        );
+        return res.json({ status: 'success', message: 'Day marked complete' });
+    } catch (err) {
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
+app.get('/api/day_closed', async (req, res) => {
+    try {
+        const date = sanitize(req.query.date);
+        if (!date) return res.status(400).json({ status: 'error', message: 'Missing date parameter' });
+
+        const row = await dbGet(req.userDb, 'SELECT date FROM closed_days WHERE date = ?', [date]);
+        return res.json({ status: 'success', closed: !!row });
+    } catch (err) {
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
+app.get('/api/closed_days_range', async (req, res) => {
+    try {
+        const start = sanitize(req.query.start);
+        const end = sanitize(req.query.end);
+        if (!start || !end) return res.status(400).json({ status: 'error', message: 'Missing start or end parameter' });
+
+        const rows = await dbAll(req.userDb, 'SELECT date FROM closed_days WHERE date BETWEEN ? AND ? ORDER BY date', [start, end]);
+        const dates = (rows || []).map(r => r.date);
+        return res.json({ status: 'success', dates });
+    } catch (err) {
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
 // --- Calories ---
 
 app.get('/api/calories_per_day', async (req, res) => {
@@ -876,6 +935,22 @@ app.get('/api/weight_log_all', async (req, res) => {
     try {
         const rows = await dbAll(req.userDb, 'SELECT date, weight FROM weight_log ORDER BY date ASC', []);
         return res.json({ status: 'success', weights: rows });
+    } catch (err) {
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
+app.get('/api/top_foods', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(sanitize(req.query.limit) || '50', 10) || 50, 100);
+        const rows = await dbAll(req.userDb, `
+            SELECT food_name as name, SUM(cnt) as count FROM (
+                SELECT meal_name as food_name, COUNT(*) as cnt FROM meal_log GROUP BY meal_name
+                UNION ALL
+                SELECT name as food_name, COUNT(*) as cnt FROM quick_add_log GROUP BY name
+            ) GROUP BY food_name ORDER BY count DESC LIMIT ?
+        `, [limit]);
+        return res.json({ status: 'success', foods: rows });
     } catch (err) {
         return res.status(500).json({ status: 'error', message: 'Database error' });
     }
@@ -1178,94 +1253,6 @@ app.delete('/api/meal_plans/:id', async (req, res) => {
         return res.json({ status: 'success', message: 'Meal plan deleted' });
     } catch (err) {
         return res.status(500).json({ status: 'error', message: 'Database error' });
-    }
-});
-
-// --- AI Calorie Lookup ---
-
-app.post('/api/lookup_calories', async (req, res) => {
-    const foodName = sanitize(req.body.foodName);
-    const portionSize = sanitize(req.body.portionSize);
-
-    if (!foodName || !portionSize) {
-        return res.status(400).json({ status: 'error', message: 'Missing food name or portion size' });
-    }
-
-    try {
-        const prompt = `You are a nutrition expert. Estimate the calories for ${portionSize} of ${foodName}.
-
-Based on standard nutritional databases, provide:
-- calories: the estimated calorie count (number only)
-- servingSizeOunces: the standard serving size in ounces (number only)
-- reasoning: brief explanation of the estimate
-
-Respond in this exact JSON format:
-{
-  "calories": [number],
-  "servingSizeOunces": [number],
-  "reasoning": "[brief explanation]"
-}
-
-For reference, common estimates:
-- Hot dog: ~150 calories for 1.6 oz
-- Apple: ~95 calories for 6.3 oz
-- Chicken breast: ~165 calories for 3.5 oz
-- Rice: ~205 calories for 6 oz cooked`;
-
-        const ollamaResponse = await axios.post('https://ollama.nicktantillo.com/api/generate', {
-            model: 'llama3.2',
-            prompt: prompt,
-            stream: false
-        });
-
-        const response = ollamaResponse.data.response;
-        let result;
-        try {
-            result = JSON.parse(response);
-        } catch (parseError) {
-            const calorieMatch = response.match(/(\d+(?:\.\d+)?)\s*calories?/i);
-            const ounceMatch = response.match(/(\d+(?:\.\d+)?)\s*ounces?/i);
-            result = {
-                calories: calorieMatch ? parseFloat(calorieMatch[1]) : null,
-                servingSizeOunces: ounceMatch ? parseFloat(ounceMatch[1]) : null,
-                reasoning: response
-            };
-        }
-
-        return res.json({ status: 'success', data: result, originalResponse: response });
-    } catch (error) {
-        console.error('Ollama error:', error);
-
-        if (error.response) {
-            const status = error.response.status;
-            const errorData = error.response.data;
-
-            if (status === 403 && errorData && typeof errorData === 'string') {
-                const ipv6Match = errorData.match(/([0-9a-fA-F:]+:+[0-9a-fA-F:]+)/);
-                if (ipv6Match) {
-                    return res.status(403).json({
-                        status: 'error',
-                        message: `Need to add ${ipv6Match[1]} to Cloudflare allowlist`,
-                        statusCode: 403,
-                        details: 'Cloudflare proxy error - IPv6 address needs to be whitelisted'
-                    });
-                }
-            }
-
-            const errorMessage = errorData.error || errorData.message || 'Unknown error';
-            return res.status(status).json({
-                status: 'error',
-                message: errorMessage,
-                statusCode: status,
-                details: errorData
-            });
-        }
-
-        return res.status(500).json({
-            status: 'error',
-            message: error.message || 'Failed to lookup calories',
-            details: error.toString()
-        });
     }
 });
 

@@ -248,6 +248,111 @@ function switchTab(tabName) {
         updateRecipeTemplateSelect();
         loadSavedRecipes();
     }
+
+    // Lazy-load AI Advisor prompts
+    if (tabName === 'ai-advisor' && !aiAdvisorLoaded) {
+        aiAdvisorLoaded = true;
+        loadAiAdvisorPrompts();
+    }
+
+    // Sync and show food log calendar when Today tab is visible
+    if (tabName === 'today') {
+        calendarYear = currentViewDate.getFullYear();
+        renderFoodLogCalendar();
+    }
+}
+
+let aiAdvisorLoaded = false;
+
+async function loadAiAdvisorPrompts() {
+    const weightEl = document.getElementById('aiAdvisorWeightPrompt');
+    const foodsEl = document.getElementById('aiAdvisorFoodsPrompt');
+    const recipesEl = document.getElementById('aiAdvisorRecipesPrompt');
+    if (!weightEl || !foodsEl || !recipesEl) return;
+
+    const parseJson = async (res) => {
+        const text = await res.text();
+        try {
+            return JSON.parse(text);
+        } catch {
+            return { status: 'error', message: text || res.statusText };
+        }
+    };
+
+    const fetchWeight = () => apiFetch('/api/weight_log_all').then(parseJson);
+    const fetchFoods = () => apiFetch('/api/top_foods?limit=50').then(parseJson);
+
+    try {
+        const [weightSettled, foodsSettled] = await Promise.allSettled([fetchWeight(), fetchFoods()]);
+        const weightRes = weightSettled.status === 'fulfilled' ? weightSettled.value : { status: 'error' };
+        const foodsRes = foodsSettled.status === 'fulfilled' ? foodsSettled.value : { status: 'error' };
+
+        const weights = weightRes.status === 'success' && Array.isArray(weightRes.weights) ? weightRes.weights : [];
+        const foods = foodsRes.status === 'success' && Array.isArray(foodsRes.foods) ? foodsRes.foods : [];
+
+        const weightBlock = weights.length > 0
+            ? weights.map(w => `${w.date}\t${w.weight} lbs`).join('\n')
+            : '(No weight entries logged yet.)';
+
+        const disclaimer = 'Important: Your response is for informational purposes only and is not medical advice. I will consult a healthcare provider for medical advice.';
+        weightEl.value = `${disclaimer}
+
+Below is my weight log (date and weight in lbs). Please look at it and identify any trends or patterns. I understand that day-to-day weight fluctuations and occasional plateaus are normal—just share what you notice about my data.
+
+${weightBlock}`;
+
+        const foodsBlock = foods.length > 0
+            ? foods.map(f => `${f.name}: logged ${f.count} time(s)`).join('\n')
+            : '(No food entries logged yet.)';
+
+        foodsEl.value = `${disclaimer}
+
+Below is how often I've logged each of my top foods (count = number of times logged). Please give me healthy eating advice based on this—what stands out, what I might eat more or less of, and any gentle suggestions.
+
+${foodsBlock}`;
+
+        const recipeFoodList = foods.length > 0
+            ? foods.slice(0, 30).map(f => f.name).join(', ')
+            : '(No food entries yet—log some meals first.)';
+        const dailyCalorieBudget = getCalorieGoal();
+
+        recipesEl.value = `${disclaimer}
+
+These are foods I eat often: ${recipeFoodList}
+
+My daily calorie budget: ${dailyCalorieBudget} kcal.
+
+Please suggest a few simple recipes I might enjoy that use these ingredients or similar flavors. Requirements:
+- Do not include breakfast foods in your suggestions (lunch/dinner/snacks only).
+- Keep recipes simple.
+- Do not invent recipes—only suggest recipes from reputable sources (e.g. well-known cookbooks, established recipe sites like BBC Good Food, Serious Eats, etc.) and cite or link to the source when possible.
+- Include brief instructions and approximate servings and calories per serving if you can.`;
+    } catch (err) {
+        console.error('AI Advisor load error:', err);
+        weightEl.value = 'Could not load data. Please refresh and try again.';
+        foodsEl.value = 'Could not load data. Please refresh and try again.';
+        recipesEl.value = 'Could not load data. Please refresh and try again.';
+    }
+}
+
+function showCopyFeedback(btnId) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+}
+
+function setupAiAdvisorCopyButtons() {
+    const copy = (textareaId, btnId) => {
+        const el = document.getElementById(textareaId);
+        if (el && el.value) {
+            navigator.clipboard.writeText(el.value).then(() => showCopyFeedback(btnId)).catch(() => {});
+        }
+    };
+    document.getElementById('copyWeightPrompt')?.addEventListener('click', () => copy('aiAdvisorWeightPrompt', 'copyWeightPrompt'));
+    document.getElementById('copyFoodsPrompt')?.addEventListener('click', () => copy('aiAdvisorFoodsPrompt', 'copyFoodsPrompt'));
+    document.getElementById('copyRecipesPrompt')?.addEventListener('click', () => copy('aiAdvisorRecipesPrompt', 'copyRecipesPrompt'));
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -304,6 +409,17 @@ function setTodayForLogDate() {
     if (logRecipeDateInput) logRecipeDateInput.value = today;
 }
 
+/** Sync log form date inputs to the currently viewed day so Quick Add / Log Food / Log Recipe go to the day shown in the food log. */
+function syncLogFormDatesToView() {
+    const viewDate = getLocalDate(currentViewDate);
+    const logDateInput = document.getElementById('logDate');
+    const quickAddDateInput = document.getElementById('quickAddDate');
+    const logRecipeDateInput = document.getElementById('logRecipeDate');
+    if (logDateInput) logDateInput.value = viewDate;
+    if (quickAddDateInput) quickAddDateInput.value = viewDate;
+    if (logRecipeDateInput) logRecipeDateInput.value = viewDate;
+}
+
 // ==============================================
 //  UNIT UI HELPERS
 // ==============================================
@@ -318,17 +434,24 @@ function extractMealMetaFromOptionText(txt) {
     };
 }
 
+function mealToOptionText(meal) {
+    const unitType = meal.unit_type || 'piece';
+    return `${meal.name} (${meal.calories_per_serving} cal/${meal.ounces_per_serving} ${unitType})`;
+}
+
 function updateUnitUI() {
-    const mealSelect = document.getElementById('mealSelect');
+    const mealIdHidden = document.getElementById('mealIdHidden');
     const unitLabel = document.getElementById('selectedUnitLabel');
     const unitHint = document.getElementById('selectedUnitHint');
-    const opt = mealSelect && mealSelect.options[mealSelect.selectedIndex];
-    if (!opt || !opt.textContent) {
+    const id = mealIdHidden && mealIdHidden.value ? parseInt(mealIdHidden.value, 10) : null;
+    const meal = id ? allMealsForSelect.find(m => m.id === id) : null;
+    const optionText = meal ? mealToOptionText(meal) : '';
+    if (!optionText) {
         if (unitLabel) unitLabel.textContent = '';
         if (unitHint) unitHint.textContent = '';
         return;
     }
-    const meta = extractMealMetaFromOptionText(opt.textContent);
+    const meta = extractMealMetaFromOptionText(optionText);
     if (unitLabel) unitLabel.textContent = meta.unitType ? `(${meta.unitType})` : '';
     if (unitHint) unitHint.textContent =
         meta.caloriesPerServing && meta.unitsPerServing && meta.unitType
@@ -338,16 +461,18 @@ function updateUnitUI() {
 }
 
 function updateLiveCalc() {
-    const mealSelect = document.getElementById('mealSelect');
+    const mealIdHidden = document.getElementById('mealIdHidden');
     const ouncesInput = document.querySelector('#logMealForm input[name="ounces"]');
     const liveCalc = document.getElementById('liveCalc');
-    const opt = mealSelect && mealSelect.options[mealSelect.selectedIndex];
+    const id = mealIdHidden && mealIdHidden.value ? parseInt(mealIdHidden.value, 10) : null;
+    const meal = id ? allMealsForSelect.find(m => m.id === id) : null;
+    const optionText = meal ? mealToOptionText(meal) : '';
     const qty = parseFloat(ouncesInput && ouncesInput.value || '0');
-    if (!opt || !(qty > 0)) {
+    if (!optionText || !(qty > 0)) {
         if (liveCalc) liveCalc.textContent = '';
         return;
     }
-    const meta = extractMealMetaFromOptionText(opt.textContent);
+    const meta = extractMealMetaFromOptionText(optionText);
     if (meta.caloriesPerServing != null && meta.unitsPerServing != null && meta.unitsPerServing > 0) {
         const total = Math.round((qty * meta.caloriesPerServing) / meta.unitsPerServing);
         const unit = meta.unitType || 'units';
@@ -372,19 +497,13 @@ function sortMealsByCategoryThenName(meals) {
     });
 }
 
-function renderMealSelectOptions(meals, selectedId) {
-    const select = document.getElementById('mealSelect');
-    const searchInput = document.getElementById('mealTemplateSearch');
-    if (!select) return;
+function renderMealComboboxDropdown(meals) {
+    const dropdown = document.getElementById('mealTemplateDropdown');
+    if (!dropdown) return;
 
-    select.innerHTML = '';
     if (!meals || meals.length === 0) {
-        const opt = document.createElement('option');
-        opt.textContent = searchInput && searchInput.value.trim() ? 'No matching templates' : 'No templates yet';
-        opt.disabled = true;
-        opt.value = '';
-        select.appendChild(opt);
-        updateUnitUI();
+        dropdown.innerHTML = '<div class="px-3 py-2 text-sm text-gray-500">No matching templates</div>';
+        dropdown.classList.remove('hidden');
         return;
     }
 
@@ -396,23 +515,19 @@ function renderMealSelectOptions(meals, selectedId) {
     });
 
     const categories = Object.keys(byCategory).sort((a, b) => a.localeCompare(b));
+    let html = '';
     categories.forEach(cat => {
-        const optgroup = document.createElement('optgroup');
-        optgroup.label = cat;
+        html += `<div class="px-2 pt-2 pb-0.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">${cat}</div>`;
         byCategory[cat].forEach(meal => {
-            const option = document.createElement('option');
-            option.value = meal.id;
             const unitType = meal.unit_type || 'piece';
-            option.textContent = `${meal.name} (${meal.calories_per_serving} cal/${meal.ounces_per_serving} ${unitType})`;
+            const displayText = mealToOptionText(meal);
             const colors = getCalorieDensityColors(meal.calories_per_serving, meal.ounces_per_serving, unitType);
-            option.style.backgroundColor = colors.bg;
-            option.style.color = colors.text;
-            if (selectedId && meal.id === selectedId) option.selected = true;
-            optgroup.appendChild(option);
+            const escaped = displayText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            html += `<div class="meal-combobox-option px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-0" role="option" tabindex="-1" data-meal-id="${meal.id}" style="background-color:${colors.bg};color:${colors.text}">${escaped}</div>`;
         });
-        select.appendChild(optgroup);
     });
-    updateUnitUI();
+    dropdown.innerHTML = html;
+    dropdown.classList.remove('hidden');
 }
 
 function filterMealsBySearch(meals, query, selectedId) {
@@ -426,39 +541,96 @@ function filterMealsBySearch(meals, query, selectedId) {
     return filtered;
 }
 
-async function updateMealSelect(selectedId) {
+async function updateMealSelect() {
     try {
         const res = await apiFetch('/api/meals');
         const data = await res.json();
         const meals = data.meals || [];
         allMealsForSelect = sortMealsByCategoryThenName(meals);
-
-        const searchInput = document.getElementById('mealTemplateSearch');
-        const query = searchInput ? searchInput.value.trim() : '';
-        const filtered = filterMealsBySearch(allMealsForSelect, query, selectedId);
-        renderMealSelectOptions(filtered, selectedId);
+        updateUnitUI();
     } catch (err) {
-        console.error('Error loading meal select:', err);
+        console.error('Error loading meal templates:', err);
     }
 }
 
-function setupMealTemplateSearch() {
-    const searchInput = document.getElementById('mealTemplateSearch');
-    const select = document.getElementById('mealSelect');
-    if (!searchInput || !select) return;
+function hideMealComboboxDropdown() {
+    const dropdown = document.getElementById('mealTemplateDropdown');
+    const combobox = document.getElementById('mealTemplateCombobox');
+    if (dropdown) dropdown.classList.add('hidden');
+    if (combobox) combobox.setAttribute('aria-expanded', 'false');
+}
 
-    searchInput.addEventListener('input', () => {
-        const query = searchInput.value.trim();
-        const selectedId = select.value ? parseInt(select.value, 10) : null;
-        const filtered = filterMealsBySearch(allMealsForSelect, query, selectedId);
-        renderMealSelectOptions(filtered, selectedId);
+function setupMealCombobox() {
+    const combobox = document.getElementById('mealTemplateCombobox');
+    const hidden = document.getElementById('mealIdHidden');
+    const dropdown = document.getElementById('mealTemplateDropdown');
+    if (!combobox || !hidden || !dropdown) return;
+
+    function showFiltered(query) {
+        const filtered = filterMealsBySearch(allMealsForSelect, query, null);
+        renderMealComboboxDropdown(filtered);
+        combobox.setAttribute('aria-expanded', 'true');
+    }
+
+    combobox.addEventListener('input', () => {
+        const query = combobox.value.trim();
+        hidden.value = '';
+        updateUnitUI();
+        showFiltered(query);
     });
 
-    searchInput.addEventListener('focus', () => {
-        const query = searchInput.value.trim();
-        const selectedId = select.value ? parseInt(select.value, 10) : null;
-        const filtered = filterMealsBySearch(allMealsForSelect, query, selectedId);
-        renderMealSelectOptions(filtered, selectedId);
+    combobox.addEventListener('focus', () => {
+        showFiltered(combobox.value.trim());
+    });
+
+    combobox.addEventListener('blur', () => {
+        setTimeout(hideMealComboboxDropdown, 150);
+    });
+
+    combobox.addEventListener('keydown', (e) => {
+        const options = dropdown.querySelectorAll('.meal-combobox-option');
+        if (!options.length) return;
+        const focused = dropdown.querySelector('.meal-combobox-option[data-focus="true"]');
+        let idx = focused ? Array.from(options).indexOf(focused) : -1;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            idx = idx < options.length - 1 ? idx + 1 : 0;
+            options.forEach((el, i) => {
+                el.setAttribute('data-focus', i === idx ? 'true' : 'false');
+                el.classList.toggle('bg-indigo-100', i === idx);
+            });
+            options[idx].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            idx = idx <= 0 ? options.length - 1 : idx - 1;
+            options.forEach((el, i) => {
+                el.setAttribute('data-focus', i === idx ? 'true' : 'false');
+                el.classList.toggle('bg-indigo-100', i === idx);
+            });
+            options[idx].scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter' && idx >= 0 && options[idx]) {
+            e.preventDefault();
+            options[idx].click();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            hideMealComboboxDropdown();
+            combobox.blur();
+        }
+    });
+
+    dropdown.addEventListener('mousedown', (e) => {
+        const option = e.target.closest('.meal-combobox-option');
+        if (!option) return;
+        e.preventDefault();
+        const id = option.getAttribute('data-meal-id');
+        const meal = allMealsForSelect.find(m => m.id === parseInt(id, 10));
+        if (meal) {
+            hidden.value = meal.id;
+            combobox.value = mealToOptionText(meal);
+            updateUnitUI();
+        }
+        hideMealComboboxDropdown();
     });
 }
 
@@ -561,32 +733,30 @@ document.getElementById('addMealForm').addEventListener('submit', async (e) => {
 document.getElementById('logMealForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.target;
-    const mealSelect = document.getElementById('mealSelect');
-    const selectedOption = mealSelect.options[mealSelect.selectedIndex];
+    const mealId = form.meal_id && form.meal_id.value ? parseInt(form.meal_id.value, 10) : null;
+    const meal = mealId ? allMealsForSelect.find(m => m.id === mealId) : null;
     const units = parseFloat(form.ounces.value);
 
-    if (!selectedOption || !units) {
+    if (!meal || !units) {
         document.getElementById('logMealMsg').innerHTML = '<div class="msg-error text-sm">Please select a template and enter quantity</div>';
         return;
     }
 
-    const mealName = selectedOption.textContent.split(' (')[0];
-    const calMatch = selectedOption.textContent.match(/\((\d+(?:\.\d+)?) cal/);
-    const unitMatch = selectedOption.textContent.match(/cal\/(\d+(?:\.\d+)?) /);
-    const caloriesPerServing = calMatch ? parseFloat(calMatch[1]) : 0;
-    const ouncesPerServing = unitMatch ? parseFloat(unitMatch[1]) : 1;
+    const caloriesPerServing = meal.calories_per_serving;
+    const ouncesPerServing = meal.ounces_per_serving || 1;
     const calories = Math.round((units * caloriesPerServing) / ouncesPerServing);
 
     try {
         const res = await apiPost('/api/meal_log', {
-            meal_name: mealName,
+            meal_name: meal.name,
             date: form.date.value,
             calories: calories
         });
         const data = await res.json();
         if (data.status === 'success') {
             form.reset();
-            setTodayForLogDate();
+            document.getElementById('mealIdHidden').value = '';
+            syncLogFormDatesToView();
             renderTodayMeals();
             document.getElementById('logMealMsg').innerHTML = '<div class="msg-success text-sm">Food logged!</div>';
         } else {
@@ -610,7 +780,7 @@ document.getElementById('quickAddForm').addEventListener('submit', async (e) => 
         const data = await res.json();
         if (data.status === 'success') {
             form.reset();
-            setTodayForLogDate();
+            syncLogFormDatesToView();
             renderTodayMeals();
             document.getElementById('quickAddMsg').innerHTML = '<div class="msg-success text-sm">Quick add logged!</div>';
         } else {
@@ -647,8 +817,7 @@ document.getElementById('logRecipeForm').addEventListener('submit', async (e) =>
         const data = await res.json();
         if (data.status === 'success') {
             form.reset();
-            const logRecipeDate = document.getElementById('logRecipeDate');
-            if (logRecipeDate) logRecipeDate.value = getTodayLocalDate();
+            syncLogFormDatesToView();
             renderTodayMeals();
             document.getElementById('logRecipeMsg').innerHTML = '<div class="msg-success text-sm">Recipe logged!</div>';
         } else {
@@ -706,109 +875,32 @@ document.getElementById('weightLogForm').addEventListener('submit', async (e) =>
     }
 });
 
-// AI calorie lookup
-document.getElementById('lookupForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const resultDiv = document.getElementById('lookupResult');
-    resultDiv.innerHTML = `
-        <div class="flex items-center justify-center p-4">
-            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
-            <span class="ml-3 text-gray-500 text-sm">Looking up calories...</span>
-        </div>`;
-
-    try {
-        const res = await apiPost('/api/lookup_calories', {
-            foodName: form.foodName.value,
-            portionSize: form.portionSize.value
-        });
-        const data = await res.json();
-
-        if (data.status === 'success') {
-            const result = data.data;
-            resultDiv.innerHTML = `
-                <div class="fade-in bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div class="grid grid-cols-3 gap-3 mb-3 text-center">
-                        <div class="bg-white rounded-lg p-3 border">
-                            <div class="text-xs text-gray-500">Calories</div>
-                            <div class="text-xl font-bold text-green-600">${result.calories || 'N/A'}</div>
-                        </div>
-                        <div class="bg-white rounded-lg p-3 border">
-                            <div class="text-xs text-gray-500">Serving (oz)</div>
-                            <div class="text-xl font-bold text-green-600">${result.servingSizeOunces || 'N/A'}</div>
-                        </div>
-                        <div class="bg-white rounded-lg p-3 border">
-                            <div class="text-xs text-gray-500">Cal/oz</div>
-                            <div class="text-xl font-bold text-green-600">${result.calories && result.servingSizeOunces ? Math.round(result.calories / result.servingSizeOunces) : 'N/A'}</div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-lg p-3 border mb-3">
-                        <div class="text-xs text-gray-500 mb-1">AI Reasoning</div>
-                        <div class="text-sm text-gray-700">${result.reasoning || 'No reasoning provided'}</div>
-                    </div>
-                    ${result.calories && result.servingSizeOunces ? `
-                    <div class="flex gap-2">
-                        <button onclick="populateAddMealForm('${form.foodName.value.replace(/'/g, "\\'")}', ${result.calories}, ${result.servingSizeOunces})"
-                            class="flex-1 btn-primary text-sm py-1.5">Populate Form</button>
-                        <button onclick="addLookupResult('${form.foodName.value.replace(/'/g, "\\'")}', ${result.calories}, ${result.servingSizeOunces})"
-                            class="flex-1 btn-success text-sm py-1.5">Add to Templates</button>
-                    </div>` : ''}
-                </div>`;
-        } else {
-            resultDiv.innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
-        }
-    } catch (err) {
-        resultDiv.innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
-    }
-});
-
-function populateAddMealForm(name, calories, ounces) {
-    const form = document.getElementById('addMealForm');
-    form.name.value = name;
-    form.calories_per_serving.value = calories;
-    form.ounces_per_serving.value = ounces;
-    form.scrollIntoView({ behavior: 'smooth' });
-    document.getElementById('addMealMsg').innerHTML = '<div class="msg-info text-sm">Form populated. Review and click "Add Food Template" to save.</div>';
-}
-
-async function addLookupResult(name, calories, ounces) {
-    try {
-        const res = await apiPost('/api/meals', {
-            name: name,
-            calories_per_serving: calories,
-            ounces_per_serving: ounces
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-            document.getElementById('addMealMsg').innerHTML = `<div class="msg-success text-sm">Added "${name}" from lookup result</div>`;
-            updateMealSelect(data.meal_id);
-            loadSavedMeals();
-        } else {
-            document.getElementById('addMealMsg').innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
-        }
-    } catch (err) {
-        document.getElementById('addMealMsg').innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
-    }
-}
-
 // ==============================================
 //  TODAY'S FOOD LOG
 // ==============================================
 
 let currentViewDate = new Date();
 
+// Calendar (below food log): which year is shown (Wayback-style: all 12 months)
+let calendarYear = currentViewDate.getFullYear();
+
 async function renderTodayMeals() {
     const viewDate = getLocalDate(currentViewDate);
 
     try {
-        const [mealRes, quickAddRes] = await Promise.all([
+        const [mealRes, quickAddRes, closedRes] = await Promise.all([
             apiFetch(`/api/meal_log_for_day?date=${viewDate}`),
-            apiFetch(`/api/quick_add_for_day?date=${viewDate}`)
+            apiFetch(`/api/quick_add_for_day?date=${viewDate}`),
+            apiFetch(`/api/day_closed?date=${viewDate}`)
         ]);
 
         const mealData = await mealRes.json();
         const quickAddData = await quickAddRes.json();
+        const closedData = await closedRes.json();
+        const dayClosed = closedData.status === 'success' && closedData.closed === true;
         const container = document.getElementById('todayMeals');
+
+        updateCompleteDaySection(dayClosed);
 
         const hasMeals = mealData.logs && mealData.logs.length > 0;
         const hasQuickAdds = quickAddData.logs && quickAddData.logs.length > 0;
@@ -884,6 +976,30 @@ function updateCalorieSummaryFromTotal(total) {
     }
 }
 
+/** Renders the big "Complete day" section at the top of the Today tab (above Quick Add). */
+function updateCompleteDaySection(dayClosed) {
+    const el = document.getElementById('completeDaySection');
+    if (!el) return;
+    const dateLabel = formatDisplayDate(currentViewDate);
+    if (dayClosed) {
+        el.innerHTML = `
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="text-lg font-semibold text-gray-800">Log for ${dateLabel}</div>
+                <span class="inline-flex items-center justify-center px-4 py-3 rounded-lg text-base font-medium text-emerald-700 bg-emerald-50 border border-emerald-200" title="Log for this day is marked complete">
+                    Day complete
+                </span>
+            </div>`;
+    } else {
+        el.innerHTML = `
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="text-lg font-semibold text-gray-800">Log for ${dateLabel}</div>
+                <button type="button" onclick="closeDay()" class="w-full sm:w-auto btn-success text-base font-medium py-3 px-6 rounded-lg" title="Mark this day's log as complete so it doesn't look like you ate less">
+                    Complete day
+                </button>
+            </div>`;
+    }
+}
+
 function generateDayNavigation() {
     const today = new Date();
     const isToday = getLocalDate(currentViewDate) === getLocalDate(today);
@@ -891,7 +1007,7 @@ function generateDayNavigation() {
     const dateLabel = formatDisplayDate(currentViewDate);
 
     return `
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
             <button onclick="goToPreviousDay()" class="p-1.5 rounded hover:bg-gray-100 text-gray-600 transition-colors" title="Previous day">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -907,20 +1023,139 @@ function generateDayNavigation() {
         </div>`;
 }
 
+async function renderFoodLogCalendar() {
+    const container = document.getElementById('foodLogCalendar');
+    if (!container) return;
+
+    const yearLabel = document.getElementById('calendarYearLabel');
+    if (yearLabel) yearLabel.textContent = calendarYear;
+
+    const viewDateStr = getLocalDate(currentViewDate);
+    const todayStr = getTodayLocalDate();
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const weekdayHeaders = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+    const start = `${calendarYear}-01-01`;
+    const end = `${calendarYear}-12-31`;
+    let datesWithData = new Set();
+    try {
+        const res = await apiFetch(`/api/calories_range?start=${start}&end=${end}`);
+        const data = await res.json();
+        if (data.status === 'success' && Array.isArray(data.data)) {
+            data.data.forEach(({ date }) => { datesWithData.add(date); });
+        }
+    } catch (err) {
+        console.error('Calendar: could not load dates with data', err);
+    }
+
+    function buildMonthGrid(month1Based) {
+        const first = new Date(calendarYear, month1Based - 1, 1);
+        const last = new Date(calendarYear, month1Based, 0);
+        const daysInMonth = last.getDate();
+        let startDow = first.getDay();
+
+        let headerRow = '<tr class="bg-gray-100 border-b border-gray-200">';
+        weekdayHeaders.forEach(d => { headerRow += `<th class="border border-gray-200 px-0.5 py-1 text-center text-[10px] font-semibold text-gray-500 w-6">${d}</th>`; });
+        headerRow += '</tr>';
+
+        let body = '<tr>';
+        let cellCount = 0;
+        for (let i = 0; i < startDow; i++) {
+            body += '<td class="border border-gray-200 p-0 text-center text-[10px] text-gray-300 w-6 h-5"></td>';
+            cellCount++;
+        }
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${calendarYear}-${String(month1Based).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const hasData = datesWithData.has(dateStr);
+            const isSelected = dateStr === viewDateStr;
+            const isToday = dateStr === todayStr;
+
+            if (hasData) {
+                const btnClass = isSelected
+                    ? 'inline-block w-full py-0.5 rounded text-[10px] font-semibold bg-indigo-600 text-white hover:bg-indigo-700'
+                    : isToday
+                        ? 'inline-block w-full py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-800 hover:bg-indigo-200'
+                        : 'inline-block w-full py-0.5 rounded text-[10px] text-indigo-600 hover:bg-indigo-50 hover:underline';
+                body += `<td class="border border-gray-200 p-0 text-center w-6 h-5 align-middle">
+                    <button type="button" class="${btnClass}" data-year="${calendarYear}" data-month="${month1Based}" data-day="${day}" aria-label="Load ${dateStr}">${day}</button>
+                </td>`;
+            } else {
+                const spanClass = isToday ? 'text-[10px] text-gray-400 font-medium' : 'text-[10px] text-gray-300';
+                body += `<td class="border border-gray-200 p-0 text-center w-6 h-5 align-middle"><span class="${spanClass}">${day}</span></td>`;
+            }
+            cellCount++;
+            if (cellCount % 7 === 0) body += '</tr><tr>';
+        }
+        while (cellCount % 7 !== 0) {
+            body += '<td class="border border-gray-200 p-0 text-center w-6 h-5"></td>';
+            cellCount++;
+        }
+        body += '</tr>';
+
+        return `<table class="border-collapse text-sm border border-gray-200">${headerRow}${body}</table>`;
+    }
+
+    let grid = '<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">';
+    for (let m = 1; m <= 12; m++) {
+        grid += `<div class="flex flex-col">
+            <div class="text-xs font-semibold text-gray-700 mb-1">${monthNames[m - 1]}</div>
+            ${buildMonthGrid(m)}
+        </div>`;
+    }
+    grid += '</div>';
+
+    container.innerHTML = grid;
+
+    container.querySelectorAll('button[data-year][data-month][data-day]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const y = parseInt(btn.getAttribute('data-year'), 10);
+            const m = parseInt(btn.getAttribute('data-month'), 10);
+            const d = parseInt(btn.getAttribute('data-day'), 10);
+            goToCalendarDay(y, m, d);
+        });
+    });
+}
+
+function goToCalendarDay(year, month, day) {
+    currentViewDate = new Date(year, month - 1, day);
+    calendarYear = year;
+    syncLogFormDatesToView();
+    renderTodayMeals();
+    renderFoodLogCalendar();
+}
+
+async function closeDay() {
+    const viewDate = getLocalDate(currentViewDate);
+    try {
+        const res = await apiPost('/api/close_day', { date: viewDate });
+        const data = await res.json();
+        if (data.status === 'success') {
+            renderTodayMeals();
+        } else {
+            alert('Error: ' + (data.message || 'Could not close day'));
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
 function goToPreviousDay() {
     currentViewDate.setDate(currentViewDate.getDate() - 1);
+    syncLogFormDatesToView();
     renderTodayMeals();
 }
 
 function goToNextDay() {
     if (getLocalDate(currentViewDate) !== getLocalDate(new Date())) {
         currentViewDate.setDate(currentViewDate.getDate() + 1);
+        syncLogFormDatesToView();
         renderTodayMeals();
     }
 }
 
 function goToToday() {
     currentViewDate = new Date();
+    syncLogFormDatesToView();
     renderTodayMeals();
 }
 
@@ -1514,12 +1749,26 @@ async function loadCaloriesChart() {
         if (data.status === 'success' && data.data && data.data.length > 0) {
             const dates = data.data.map(c => c.date);
             const calories = data.data.map(c => c.total_calories);
+            const start = dates[0];
+            const end = dates[dates.length - 1];
+            let closedSet = new Set();
+            try {
+                const closedRes = await apiFetch(`/api/closed_days_range?start=${start}&end=${end}`);
+                const closedData = await closedRes.json();
+                if (closedData.status === 'success' && closedData.dates) closedSet = new Set(closedData.dates);
+            } catch (e) { /* ignore */ }
+            const darkPurple = '#4c1d95';
+            const lightPurple = '#a78bfa';
+            const seriesData = dates.map((d, i) => ({
+                x: d,
+                y: calories[i],
+                fillColor: closedSet.has(d) ? darkPurple : lightPurple
+            }));
 
             window.caloriesChart = new ApexCharts(chartEl, {
-                series: [{ name: 'Daily Calories', data: calories, type: 'column' }],
+                series: [{ name: 'Daily Calories', data: seriesData, type: 'column' }],
                 chart: { height: 280, type: 'bar', toolbar: { show: true } },
-                colors: ['#7c3aed'],
-                dataLabels: { enabled: true, formatter: v => Math.round(v), style: { fontSize: '10px', colors: ['#7c3aed'] } },
+                dataLabels: { enabled: false },
                 xaxis: { categories: dates, title: { text: 'Date' } },
                 yaxis: { title: { text: 'Calories' }, labels: { formatter: v => v + ' cal' } },
                 tooltip: { y: { formatter: v => v + ' cal' } },
@@ -1657,7 +1906,7 @@ function generateReportHTML(startDate, endDate, caloriesData, weightData, bpData
                 </tbody>
             </table>
             <div class="text-center text-xs text-gray-400 border-t pt-3">
-                Generated by Diet App &bull; Consult your healthcare provider for medical advice
+                Generated by Dead Weight &bull; Consult your healthcare provider for medical advice
             </div>
         </div>`;
 }
@@ -1786,12 +2035,11 @@ async function initApp() {
     if (calEnd) calEnd.value = getLocalDate(today);
     if (calStart) calStart.value = getLocalDate(weekAgo);
 
-    // Hook up unit UI events and meal template search
-    const mealSelect = document.getElementById('mealSelect');
+    // Hook up unit UI and meal combobox
     const ouncesInput = document.querySelector('#logMealForm input[name="ounces"]');
-    if (mealSelect) mealSelect.addEventListener('change', updateUnitUI);
     if (ouncesInput) ouncesInput.addEventListener('input', updateLiveCalc);
-    setupMealTemplateSearch();
+    setupMealCombobox();
+    setupAiAdvisorCopyButtons();
 
     // Hook up recipe select events
     const recipeSelect = document.getElementById('recipeSelect');
@@ -1861,6 +2109,12 @@ async function initApp() {
         dlBtn.parentNode.replaceChild(newBtn, dlBtn);
         newBtn.addEventListener('click', downloadReport);
     }
+
+    // Food log calendar year navigation
+    const calPrevYear = document.getElementById('calendarPrevYear');
+    const calNextYear = document.getElementById('calendarNextYear');
+    if (calPrevYear) calPrevYear.addEventListener('click', () => { calendarYear -= 1; renderFoodLogCalendar(); });
+    if (calNextYear) calNextYear.addEventListener('click', () => { calendarYear += 1; renderFoodLogCalendar(); });
 
     // Switch to Today tab
     switchTab('today');
