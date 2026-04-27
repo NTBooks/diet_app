@@ -231,6 +231,7 @@ document.getElementById('accountImportFile').addEventListener('change', async (e
         if (data.status === 'success') {
             msgEl.innerHTML = '<div class="msg-success text-sm">' + (data.message || 'Data imported permanently.') + '</div>';
             await initApp();
+            switchTab('account');
         } else {
             msgEl.innerHTML = '<div class="msg-error text-sm">' + (data.message || 'Import failed.') + '</div>';
         }
@@ -2167,11 +2168,19 @@ async function initApp() {
         newBtn.addEventListener('click', downloadReport);
     }
 
-    // Food log calendar year navigation
+    // Food log calendar year navigation (clone to remove old listeners)
     const calPrevYear = document.getElementById('calendarPrevYear');
     const calNextYear = document.getElementById('calendarNextYear');
-    if (calPrevYear) calPrevYear.addEventListener('click', () => { calendarYear -= 1; renderFoodLogCalendar(); });
-    if (calNextYear) calNextYear.addEventListener('click', () => { calendarYear += 1; renderFoodLogCalendar(); });
+    if (calPrevYear) {
+        const newPrev = calPrevYear.cloneNode(true);
+        calPrevYear.parentNode.replaceChild(newPrev, calPrevYear);
+        newPrev.addEventListener('click', () => { calendarYear -= 1; renderFoodLogCalendar(); });
+    }
+    if (calNextYear) {
+        const newNext = calNextYear.cloneNode(true);
+        calNextYear.parentNode.replaceChild(newNext, calNextYear);
+        newNext.addEventListener('click', () => { calendarYear += 1; renderFoodLogCalendar(); });
+    }
 
     // Switch to Today tab
     switchTab('today');

@@ -547,6 +547,11 @@ const EXPORT_TABLE_NAMES = [
 
 const safeColumnName = (name) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
 
+const getTableColumns = async (db, table) => {
+    const rows = await dbAll(db, `PRAGMA table_info(${table})`, []);
+    return (rows || []).map((r) => r.name).filter(Boolean);
+};
+
 app.post('/api/account/import', upload.single('file'), async (req, res) => {
     try {
         if (!req.file || !req.file.buffer) {
@@ -569,32 +574,55 @@ app.post('/api/account/import', upload.single('file'), async (req, res) => {
         if (!db) {
             return res.status(500).json({ status: 'error', message: 'Database not available' });
         }
+        const fileKeysLower = {};
+        for (const k of Object.keys(parsed)) {
+            if (typeof k === 'string') fileKeysLower[k.toLowerCase()] = k;
+        }
         await dbRun(db, 'PRAGMA foreign_keys = OFF');
         let totalRows = 0;
+        const tableCounts = {};
+        const tableErrors = [];
         for (const table of EXPORT_TABLE_NAMES) {
-            if (!Object.prototype.hasOwnProperty.call(parsed, table)) continue;
-            const rows = parsed[table];
+            const fileKey = fileKeysLower[table.toLowerCase()] || (Object.prototype.hasOwnProperty.call(parsed, table) ? table : null);
+            if (!fileKey) continue;
+            const rows = parsed[fileKey];
             if (!Array.isArray(rows)) continue;
-            await dbRun(db, `DELETE FROM ${table}`, []);
-            if (rows.length === 0) continue;
-            const first = rows[0];
-            if (typeof first !== 'object' || first === null) continue;
-            const columns = Object.keys(first).filter(safeColumnName);
-            if (columns.length === 0) continue;
-            const placeholders = columns.map(() => '?').join(', ');
-            const colList = columns.join(', ');
-            for (const row of rows) {
-                const values = columns.map((col) => row[col]);
-                if (values.some((v) => v === undefined)) continue;
-                await dbRun(db, `INSERT INTO ${table} (${colList}) VALUES (${placeholders})`, values);
-                totalRows += 1;
+            try {
+                const tableCols = await getTableColumns(db, table);
+                if (tableCols.length === 0) continue;
+                await dbRun(db, `DELETE FROM ${table}`, []);
+                if (rows.length === 0) {
+                    tableCounts[table] = 0;
+                    continue;
+                }
+                const first = rows[0];
+                if (typeof first !== 'object' || first === null) {
+                    tableCounts[table] = 0;
+                    continue;
+                }
+                const columns = tableCols.filter(safeColumnName);
+                if (columns.length === 0) continue;
+                const placeholders = columns.map(() => '?').join(', ');
+                const colList = columns.join(', ');
+                let count = 0;
+                for (const row of rows) {
+                    const values = columns.map((col) => (row[col] !== undefined ? row[col] : null));
+                    await dbRun(db, `INSERT INTO ${table} (${colList}) VALUES (${placeholders})`, values);
+                    count += 1;
+                    totalRows += 1;
+                }
+                tableCounts[table] = count;
+            } catch (err) {
+                console.error('Import table error:', table, err);
+                tableErrors.push(table + ': ' + (err.message || 'failed'));
             }
         }
         await dbRun(db, 'PRAGMA foreign_keys = ON');
-        return res.json({
-            status: 'success',
-            message: 'Data imported permanently. ' + totalRows + ' row(s) saved.'
-        });
+        let message = 'Data imported permanently. ' + totalRows + ' row(s) saved.';
+        if (tableErrors.length > 0) {
+            message += ' Errors: ' + tableErrors.join('; ');
+        }
+        return res.json({ status: 'success', message, tableCounts, tableErrors });
     } catch (err) {
         console.error('Import error:', err);
         return res.status(500).json({ status: 'error', message: 'Server error during import' });
