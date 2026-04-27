@@ -664,8 +664,8 @@ app.get('/api/account/export', async (req, res) => {
 app.post('/api/meals', async (req, res) => {
     try {
         const name = sanitize(req.body.name);
-        const calories_per_serving = sanitize(req.body.calories_per_serving);
-        const ounces_per_serving = sanitize(req.body.ounces_per_serving);
+        const calories_per_serving = parseFloat(req.body.calories_per_serving);
+        const ounces_per_serving = parseFloat(req.body.ounces_per_serving);
         const unit_type = sanitize(req.body.unit_type) || 'piece';
         const category = sanitize(req.body.category) || 'Other';
 
@@ -713,7 +713,7 @@ app.post('/api/meal_log', async (req, res) => {
     try {
         const meal_name = sanitize(req.body.meal_name);
         const date = sanitize(req.body.date);
-        const calories = sanitize(req.body.calories);
+        const calories = parseFloat(req.body.calories);
 
         if (!meal_name || !date || !calories) {
             return res.status(400).json({ status: 'error', message: 'Missing required fields' });
@@ -764,7 +764,7 @@ app.delete('/api/meal_log/:id', async (req, res) => {
 app.post('/api/quick_add', async (req, res) => {
     try {
         const name = sanitize(req.body.name);
-        const calories = sanitize(req.body.calories);
+        const calories = parseFloat(req.body.calories);
         const date = sanitize(req.body.date);
 
         if (!name || !calories || !date) {
@@ -924,8 +924,8 @@ app.get('/api/calories_all', async (req, res) => {
 
 app.post('/api/blood_pressure', async (req, res) => {
     try {
-        const systolic = sanitize(req.body.systolic);
-        const diastolic = sanitize(req.body.diastolic);
+        const systolic = parseInt(req.body.systolic, 10);
+        const diastolic = parseInt(req.body.diastolic, 10);
 
         if (!systolic || !diastolic) {
             return res.status(400).json({ status: 'error', message: 'Missing systolic or diastolic values' });
@@ -992,7 +992,7 @@ app.get('/api/blood_pressure_all', async (req, res) => {
 
 app.post('/api/weight_log', async (req, res) => {
     try {
-        const weight = sanitize(req.body.weight);
+        const weight = parseFloat(req.body.weight);
         const date = sanitize(req.body.date);
         if (!weight || !date) return res.status(400).json({ status: 'error', message: 'Missing weight or date' });
 

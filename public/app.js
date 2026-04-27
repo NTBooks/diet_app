@@ -1,4 +1,18 @@
 // ==============================================
+//  TOAST NOTIFICATIONS
+// ==============================================
+
+const showToast = (message, type = 'success') => {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3500);
+};
+
+// ==============================================
 //  AUTH & API HELPERS
 // ==============================================
 
@@ -108,12 +122,19 @@ async function checkAuth() {
     }
 }
 
+function setAuthMsg(message, type = 'error') {
+    const el = document.getElementById('authMsg');
+    if (!el) return;
+    el.className = `mt-4 msg-${type} text-sm`;
+    el.textContent = message;
+}
+
 // Login form
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.target;
-    const authMsg = document.getElementById('authMsg');
-    authMsg.innerHTML = '';
+    document.getElementById('authMsg').className = 'mt-4';
+    document.getElementById('authMsg').textContent = '';
 
     try {
         const res = await fetch('/api/auth/login', {
@@ -132,10 +153,10 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             form.reset();
             showAppScreen(data.username);
         } else {
-            authMsg.innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            setAuthMsg(data.message || 'Login failed');
         }
     } catch (err) {
-        authMsg.innerHTML = `<div class="msg-error text-sm">Connection error: ${err.message}</div>`;
+        setAuthMsg('Connection error: ' + err.message);
     }
 });
 
@@ -143,11 +164,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 document.getElementById('signupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.target;
-    const authMsg = document.getElementById('authMsg');
-    authMsg.innerHTML = '';
+    document.getElementById('authMsg').className = 'mt-4';
+    document.getElementById('authMsg').textContent = '';
 
     if (form.password.value !== form.confirmPassword.value) {
-        authMsg.innerHTML = '<div class="msg-error text-sm">Passwords do not match</div>';
+        setAuthMsg('Passwords do not match');
         return;
     }
 
@@ -168,10 +189,10 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
             form.reset();
             showAppScreen(data.username);
         } else {
-            authMsg.innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            setAuthMsg(data.message || 'Sign up failed');
         }
     } catch (err) {
-        authMsg.innerHTML = `<div class="msg-error text-sm">Connection error: ${err.message}</div>`;
+        setAuthMsg('Connection error: ' + err.message);
     }
 });
 
@@ -182,11 +203,9 @@ document.getElementById('logoutBtn').addEventListener('click', logout);
 document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.target;
-    const msgEl = document.getElementById('changePasswordMsg');
-    msgEl.innerHTML = '';
 
     if (form.newPassword.value !== form.confirmNewPassword.value) {
-        msgEl.innerHTML = '<div class="msg-error text-sm">New passwords do not match</div>';
+        showToast('New passwords do not match', 'error');
         return;
     }
 
@@ -199,12 +218,12 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
 
         if (data.status === 'success') {
             form.reset();
-            msgEl.innerHTML = '<div class="msg-success text-sm">Password changed successfully!</div>';
+            showToast('Password changed successfully!');
         } else {
-            msgEl.innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            showToast(data.message || 'Password change failed', 'error');
         }
     } catch (err) {
-        msgEl.innerHTML = `<div class="msg-error text-sm">Error: ${err.message}</div>`;
+        showToast('Error: ' + err.message, 'error');
     }
 });
 
@@ -215,8 +234,6 @@ document.getElementById('accountImportBtn').addEventListener('click', () => {
 
 document.getElementById('accountImportFile').addEventListener('change', async (e) => {
     const file = e.target && e.target.files && e.target.files[0];
-    const msgEl = document.getElementById('accountDataMsg');
-    msgEl.innerHTML = '';
     if (!file) return;
     try {
         const formData = new FormData();
@@ -229,32 +246,28 @@ document.getElementById('accountImportFile').addEventListener('change', async (e
         });
         const data = await res.json();
         if (data.status === 'success') {
-            msgEl.innerHTML = '<div class="msg-success text-sm">' + (data.message || 'Data imported permanently.') + '</div>';
+            showToast(data.message || 'Data imported permanently.');
             await initApp();
             switchTab('account');
         } else {
-            msgEl.innerHTML = '<div class="msg-error text-sm">' + (data.message || 'Import failed.') + '</div>';
+            showToast(data.message || 'Import failed.', 'error');
         }
     } catch (err) {
-        msgEl.innerHTML = '<div class="msg-error text-sm">Import error: ' + (err.message || 'connection failed') + '</div>';
+        showToast('Import error: ' + (err.message || 'connection failed'), 'error');
     }
     e.target.value = '';
 });
 
 document.getElementById('accountDownloadBtn').addEventListener('click', async () => {
-    const msgEl = document.getElementById('accountDataMsg');
-    msgEl.innerHTML = '';
     try {
         const res = await apiFetch('/api/account/export');
         if (!res.ok) {
-            let msg = 'Download failed';
+            let msg = 'Download failed (' + res.status + ')';
             try {
                 const data = await res.json();
                 if (data && data.message) msg = data.message;
-            } catch (_) {
-                msg = 'Download failed (' + res.status + ')';
-            }
-            msgEl.innerHTML = '<div class="msg-error text-sm">' + msg + '</div>';
+            } catch (_) { }
+            showToast(msg, 'error');
             return;
         }
         const blob = await res.blob();
@@ -265,9 +278,9 @@ document.getElementById('accountDownloadBtn').addEventListener('click', async ()
         a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
-        msgEl.innerHTML = '<div class="msg-success text-sm">Download started.</div>';
+        showToast('Download started.');
     } catch (err) {
-        msgEl.innerHTML = '<div class="msg-error text-sm">' + (err.message || 'Download error') + '</div>';
+        showToast(err.message || 'Download error', 'error');
     }
 });
 
@@ -669,7 +682,14 @@ function setupMealCombobox() {
             options[idx].scrollIntoView({ block: 'nearest' });
         } else if (e.key === 'Enter' && idx >= 0 && options[idx]) {
             e.preventDefault();
-            options[idx].click();
+            const id = options[idx].getAttribute('data-meal-id');
+            const meal = allMealsForSelect.find(m => m.id === parseInt(id, 10));
+            if (meal) {
+                hidden.value = meal.id;
+                combobox.value = mealToOptionText(meal);
+                updateUnitUI();
+            }
+            hideMealComboboxDropdown();
         } else if (e.key === 'Escape') {
             e.preventDefault();
             hideMealComboboxDropdown();
@@ -778,12 +798,12 @@ document.getElementById('addMealForm').addEventListener('submit', async (e) => {
             form.reset();
             updateMealSelect();
             loadSavedMeals();
-            document.getElementById('addMealMsg').innerHTML = '<div class="msg-success text-sm">Food template added!</div>';
+            showToast('Food template added!');
         } else {
-            document.getElementById('addMealMsg').innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            showToast(data.message || 'Failed to add template', 'error');
         }
     } catch (err) {
-        document.getElementById('addMealMsg').innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
+        showToast(err.message, 'error');
     }
 });
 
@@ -796,7 +816,7 @@ document.getElementById('logMealForm').addEventListener('submit', async (e) => {
     const units = parseFloat(form.ounces.value);
 
     if (!meal || !units) {
-        document.getElementById('logMealMsg').innerHTML = '<div class="msg-error text-sm">Please select a template and enter quantity</div>';
+        showToast('Please select a template and enter quantity', 'error');
         return;
     }
 
@@ -816,12 +836,12 @@ document.getElementById('logMealForm').addEventListener('submit', async (e) => {
             document.getElementById('mealIdHidden').value = '';
             syncLogFormDatesToView();
             renderTodayMeals();
-            document.getElementById('logMealMsg').innerHTML = '<div class="msg-success text-sm">Food logged!</div>';
+            showToast('Food logged!');
         } else {
-            document.getElementById('logMealMsg').innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            showToast(data.message || 'Failed to log food', 'error');
         }
     } catch (err) {
-        document.getElementById('logMealMsg').innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
+        showToast(err.message, 'error');
     }
 });
 
@@ -840,12 +860,12 @@ document.getElementById('quickAddForm').addEventListener('submit', async (e) => 
             form.reset();
             syncLogFormDatesToView();
             renderTodayMeals();
-            document.getElementById('quickAddMsg').innerHTML = '<div class="msg-success text-sm">Quick add logged!</div>';
+            showToast('Quick add logged!');
         } else {
-            document.getElementById('quickAddMsg').innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            showToast(data.message || 'Failed to log', 'error');
         }
     } catch (err) {
-        document.getElementById('quickAddMsg').innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
+        showToast(err.message, 'error');
     }
 });
 
@@ -858,7 +878,7 @@ document.getElementById('logRecipeForm').addEventListener('submit', async (e) =>
     const cookedOz = parseFloat(form.cooked_oz.value);
 
     if (!opt || !opt.value || !cookedOz || cookedOz <= 0) {
-        document.getElementById('logRecipeMsg').innerHTML = '<div class="msg-error text-sm">Please select a recipe and enter cooked oz</div>';
+        showToast('Please select a recipe and enter cooked oz', 'error');
         return;
     }
 
@@ -877,12 +897,12 @@ document.getElementById('logRecipeForm').addEventListener('submit', async (e) =>
             form.reset();
             syncLogFormDatesToView();
             renderTodayMeals();
-            document.getElementById('logRecipeMsg').innerHTML = '<div class="msg-success text-sm">Recipe logged!</div>';
+            showToast('Recipe logged!');
         } else {
-            document.getElementById('logRecipeMsg').innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            showToast(data.message || 'Failed to log recipe', 'error');
         }
     } catch (err) {
-        document.getElementById('logRecipeMsg').innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
+        showToast(err.message, 'error');
     }
 });
 
@@ -900,12 +920,12 @@ document.getElementById('bloodPressureForm').addEventListener('submit', async (e
             form.reset();
             loadLatestBPReading();
             chartsRendered = false; // Force chart re-render
-            document.getElementById('bloodPressureMsg').innerHTML = '<div class="msg-success text-sm">Blood pressure logged!</div>';
+            showToast('Blood pressure logged!');
         } else {
-            document.getElementById('bloodPressureMsg').innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            showToast(data.message || 'Failed to log reading', 'error');
         }
     } catch (err) {
-        document.getElementById('bloodPressureMsg').innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
+        showToast(err.message, 'error');
     }
 });
 
@@ -915,21 +935,21 @@ document.getElementById('weightLogForm').addEventListener('submit', async (e) =>
     const form = e.target;
     const weight = parseFloat(form.weight.value);
     if (!weight || weight < 50 || weight > 1000) {
-        document.getElementById('weightLogMsg').innerHTML = '<div class="msg-error text-sm">Enter a valid weight (50-1000 lbs)</div>';
+        showToast('Enter a valid weight (50–1000 lbs)', 'error');
         return;
     }
     try {
         const res = await apiPost('/api/weight_log', { weight, date: form.date.value });
         const data = await res.json();
         if (data.status === 'success') {
-            document.getElementById('weightLogMsg').innerHTML = '<div class="msg-success text-sm">Weight logged!</div>';
+            showToast('Weight logged!');
             loadTodayWeight();
             chartsRendered = false; // Force chart re-render
         } else {
-            document.getElementById('weightLogMsg').innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            showToast(data.message || 'Failed to log weight', 'error');
         }
     } catch (err) {
-        document.getElementById('weightLogMsg').innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
+        showToast(err.message, 'error');
     }
 });
 
@@ -1400,18 +1420,17 @@ function renderRecipeItems() {
 async function saveRecipe() {
     const name = document.getElementById('recipeName').value.trim();
     const cookedWeight = parseFloat(document.getElementById('recipeCookedWeight').value);
-    const msgEl = document.getElementById('saveRecipeMsg');
 
     if (!name) {
-        msgEl.innerHTML = '<div class="msg-error text-sm">Please enter a recipe name</div>';
+        showToast('Please enter a recipe name', 'error');
         return;
     }
     if (recipeItems.length === 0) {
-        msgEl.innerHTML = '<div class="msg-error text-sm">Add at least one item to the recipe</div>';
+        showToast('Add at least one item to the recipe', 'error');
         return;
     }
     if (!cookedWeight || cookedWeight <= 0) {
-        msgEl.innerHTML = '<div class="msg-error text-sm">Enter the cooked total weight in ounces</div>';
+        showToast('Enter the cooked total weight in ounces', 'error');
         return;
     }
 
@@ -1423,8 +1442,7 @@ async function saveRecipe() {
         });
         const data = await res.json();
         if (data.status === 'success') {
-            msgEl.innerHTML = '<div class="msg-success text-sm">Recipe saved!</div>';
-            // Reset builder
+            showToast('Recipe saved!');
             document.getElementById('recipeName').value = '';
             document.getElementById('recipeCookedWeight').value = '';
             recipeItems = [];
@@ -1432,10 +1450,10 @@ async function saveRecipe() {
             loadSavedRecipes();
             updateRecipeSelect();
         } else {
-            msgEl.innerHTML = `<div class="msg-error text-sm">${data.message}</div>`;
+            showToast(data.message || 'Failed to save recipe', 'error');
         }
     } catch (err) {
-        msgEl.innerHTML = `<div class="msg-error text-sm">${err.message}</div>`;
+        showToast(err.message, 'error');
     }
 }
 
@@ -1873,7 +1891,8 @@ async function generateDoctorsReport() {
 
         reportContent.innerHTML = generateReportHTML(startStr, endStr, calData, weightData, bpData);
     } catch (err) {
-        reportContent.innerHTML = `<div class="msg-error text-sm">Error generating report: ${err.message}</div>`;
+        reportContent.textContent = 'Error generating report: ' + err.message;
+        reportContent.className = 'bg-gray-50 p-6 rounded-lg border msg-error';
     }
 }
 

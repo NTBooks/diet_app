@@ -8,35 +8,38 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
     <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #059669;
+            --success-hover: #047857;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+        }
+
         .fade-in {
             animation: fadeIn 0.3s ease-in;
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(6px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .tab-btn {
             color: #6b7280;
-            transition: all 0.15s;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s, border-color 0.15s;
         }
 
         .tab-btn:hover {
-            background-color: #eef2ff;
             color: #4f46e5;
         }
 
         .tab-btn.active {
-            background-color: #4f46e5;
-            color: white;
+            color: #4f46e5;
+            border-bottom-color: #4f46e5;
+            font-weight: 600;
         }
 
         .card {
@@ -63,69 +66,45 @@
         }
 
         .btn-primary {
-            background-color: #4f46e5;
+            background-color: var(--primary);
             color: white;
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             font-weight: 500;
             transition: background-color 0.15s;
         }
-
-        .btn-primary:hover {
-            background-color: #4338ca;
-        }
+        .btn-primary:hover { background-color: var(--primary-hover); }
 
         .btn-success {
-            background-color: #059669;
+            background-color: var(--success);
             color: white;
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             font-weight: 500;
             transition: background-color 0.15s;
         }
-
-        .btn-success:hover {
-            background-color: #047857;
-        }
+        .btn-success:hover { background-color: var(--success-hover); }
 
         .btn-danger {
-            background-color: #dc2626;
+            background-color: var(--danger);
             color: white;
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             font-weight: 500;
             transition: background-color 0.15s;
         }
+        .btn-danger:hover { background-color: var(--danger-hover); }
 
-        .btn-danger:hover {
-            background-color: #b91c1c;
-        }
-
-        .btn-amber {
-            background-color: #d97706;
-            color: white;
+        .btn-secondary {
+            background-color: #f3f4f6;
+            color: #374151;
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             font-weight: 500;
+            border: 1px solid #d1d5db;
             transition: background-color 0.15s;
         }
-
-        .btn-amber:hover {
-            background-color: #b45309;
-        }
-
-        .btn-purple {
-            background-color: #7c3aed;
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            transition: background-color 0.15s;
-        }
-
-        .btn-purple:hover {
-            background-color: #6d28d9;
-        }
+        .btn-secondary:hover { background-color: #e5e7eb; }
 
         .btn-outline {
             background-color: transparent;
@@ -136,10 +115,7 @@
             color: #6b7280;
             transition: background-color 0.15s;
         }
-
-        .btn-outline:hover {
-            background-color: #f3f4f6;
-        }
+        .btn-outline:hover { background-color: #f3f4f6; }
 
         .msg-success {
             background-color: #ecfdf5;
@@ -164,10 +140,51 @@
             padding: 0.75rem 1rem;
             border-radius: 0.5rem;
         }
+
+        /* Toast notification system */
+        .toast {
+            pointer-events: auto;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            animation: toastIn 0.2s ease-out;
+            max-width: 320px;
+            word-break: break-word;
+        }
+        .toast-success { background: #065f46; color: white; }
+        .toast-error { background: #991b1b; color: white; }
+        .toast-info { background: #1e3a5f; color: white; }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(12px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Calorie summary stats */
+        .calorie-stat { text-align: center; padding: 0.5rem 0.25rem; }
+        .calorie-stat-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #9ca3af;
+            margin-bottom: 0.25rem;
+        }
+        .calorie-stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.2rem;
+        }
+        .calorie-stat-unit { font-size: 0.65rem; color: #9ca3af; }
     </style>
 </head>
 
 <body class="bg-gray-50 min-h-screen">
+
+    <!-- Toast notification container -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- ======================== AUTH SCREEN ======================== -->
     <div id="authScreen"
@@ -250,25 +267,25 @@
         </header>
 
         <!-- Tab Navigation -->
-        <nav class="bg-white shadow-sm border-b sticky top-0 z-50">
+        <nav class="bg-white border-b sticky top-0 z-50">
             <div class="container mx-auto px-4 max-w-5xl">
-                <div class="flex overflow-x-auto gap-1 py-1.5 -mx-1">
+                <div class="flex overflow-x-auto -mb-px">
                     <button data-tab="today"
-                        class="tab-btn active px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Today</button>
+                        class="tab-btn active px-4 py-3 text-sm font-medium whitespace-nowrap">Today</button>
                     <button data-tab="health"
-                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Health</button>
+                        class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap">Health</button>
                     <button data-tab="charts"
-                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Charts</button>
+                        class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap">Charts</button>
                     <button data-tab="templates"
-                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Templates</button>
+                        class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap">Templates</button>
                     <button data-tab="recipes"
-                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Recipes</button>
+                        class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap">Recipes</button>
                     <button data-tab="reports"
-                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Reports</button>
+                        class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap">Reports</button>
                     <button data-tab="ai-advisor"
-                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">AI Advisor</button>
+                        class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap">AI Advisor</button>
                     <button data-tab="account"
-                        class="tab-btn px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap">Account</button>
+                        class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap">Account</button>
                 </div>
             </div>
         </nav>
@@ -277,25 +294,33 @@
         <main class="container mx-auto px-4 py-6 max-w-5xl">
 
             <!-- Daily Summary (always visible) -->
-            <div class="card flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <div class="text-sm text-gray-500">Today's Calories</div>
-                    <div id="todayCalories" class="text-3xl font-bold text-gray-800">0 kcal</div>
-                    <div class="text-sm text-gray-500">
-                        Goal: <span id="calorieGoal">2000</span> kcal
-                        &bull; Remaining: <span id="calorieRemaining" class="font-medium">2000</span>
+            <div class="card">
+                <div class="grid grid-cols-3 divide-x divide-gray-100 mb-3">
+                    <div class="calorie-stat">
+                        <div class="calorie-stat-label">Consumed</div>
+                        <div id="todayCalories" class="calorie-stat-value text-gray-800">0</div>
+                        <div class="calorie-stat-unit">kcal</div>
+                    </div>
+                    <div class="calorie-stat">
+                        <div class="calorie-stat-label">Remaining</div>
+                        <div id="calorieRemaining" class="calorie-stat-value text-green-600">2000</div>
+                        <div class="calorie-stat-unit">kcal</div>
+                    </div>
+                    <div class="calorie-stat">
+                        <div class="calorie-stat-label">Goal</div>
+                        <div id="calorieGoal" class="calorie-stat-value text-gray-400">2000</div>
+                        <div class="calorie-stat-unit">
+                            <button id="editGoalToggle" class="text-indigo-400 hover:text-indigo-600 underline">edit</button>
+                        </div>
                     </div>
                 </div>
-                <div class="flex-1 max-w-xs">
-                    <div class="h-2.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div id="calorieProgress" class="h-2.5 bg-green-500 rounded-full transition-all duration-300"
-                            style="width: 0%"></div>
-                    </div>
+                <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="calorieProgress" class="h-2 bg-green-500 rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
-                <div class="flex items-center gap-2 text-sm">
-                    <label for="calorieGoalInput" class="text-gray-600 whitespace-nowrap">Daily goal:</label>
+                <div id="goalEditor" class="hidden mt-3 items-center gap-2 justify-center">
+                    <label for="calorieGoalInput" class="text-sm text-gray-600">Daily goal:</label>
                     <input id="calorieGoalInput" type="number" min="500" max="10000" step="50"
-                        class="input-field w-20 text-sm py-1" />
+                        class="input-field w-24 text-sm py-1" />
                     <button id="saveCalorieGoal" class="btn-outline">Save</button>
                 </div>
             </div>
@@ -330,10 +355,9 @@
                                 inputmode="decimal" class="input-field text-sm" />
                         </div>
                         <div class="flex items-end">
-                            <button type="submit" class="w-full btn-amber py-2 text-sm">Quick Add</button>
+                            <button type="submit" class="w-full btn-primary py-2 text-sm">Quick Add</button>
                         </div>
                     </form>
-                    <div id="quickAddMsg" class="mt-3"></div>
                 </div>
 
                 <!-- Log Food Template -->
@@ -369,10 +393,9 @@
                             <div id="liveCalc" class="text-xs text-indigo-600 mt-1 min-h-[16px] font-medium"></div>
                         </div>
                         <div class="flex items-end">
-                            <button type="submit" class="w-full btn-purple py-2 text-sm">Log Food</button>
+                            <button type="submit" class="w-full btn-success py-2 text-sm">Log Food</button>
                         </div>
                     </form>
-                    <div id="logMealMsg" class="mt-3"></div>
                 </div>
 
                 <!-- Log Recipe -->
@@ -407,7 +430,6 @@
                             <button type="submit" class="w-full btn-success py-2 text-sm">Log Recipe</button>
                         </div>
                     </form>
-                    <div id="logRecipeMsg" class="mt-3"></div>
                 </div>
 
                 <!-- Today's Food Log -->
@@ -457,7 +479,6 @@
                         </div>
                         <button type="submit" class="btn-primary py-2 text-sm">Log Weight</button>
                     </form>
-                    <div id="weightLogMsg" class="mb-2"></div>
                     <div class="text-sm text-gray-600">
                         Today's Weight: <span id="todayWeight" class="ml-1 font-semibold"></span>
                     </div>
@@ -484,7 +505,6 @@
                             <button type="submit" class="w-full btn-danger py-2 text-sm">Log Blood Pressure</button>
                         </div>
                     </form>
-                    <div id="bloodPressureMsg" class="mt-3"></div>
                 </div>
 
                 <!-- Latest BP -->
@@ -569,7 +589,6 @@
                         </div>
                         <button type="submit" class="w-full btn-primary py-2 text-sm">Add Food Template</button>
                     </form>
-                    <div id="addMealMsg" class="mt-3"></div>
                 </div>
 
                 <!-- Saved Food Templates -->
@@ -643,7 +662,7 @@
                                 </div>
                                 <div>
                                     <button type="button" id="addCustomToRecipeBtn"
-                                        class="w-full btn-amber py-2 text-sm">+ Add</button>
+                                        class="w-full btn-primary py-2 text-sm">+ Add</button>
                                 </div>
                             </div>
                         </div>
@@ -679,7 +698,6 @@
                         <!-- Save Button -->
                         <button type="button" id="saveRecipeBtn"
                             class="w-full btn-success py-2.5 text-sm font-semibold">Save Recipe</button>
-                        <div id="saveRecipeMsg" class="mt-1"></div>
                     </div>
                 </div>
 
@@ -708,7 +726,7 @@
                             <input type="date" id="calendarEnd" class="input-field text-sm" />
                         </div>
                         <div class="flex items-end">
-                            <button id="loadCalendar" class="w-full btn-amber py-2 text-sm">Load Calendar</button>
+                            <button id="loadCalendar" class="w-full btn-primary py-2 text-sm">Load Calendar</button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -735,7 +753,7 @@
                         <div id="reportContent" class="bg-gray-50 p-6 rounded-lg border"></div>
                         <div class="mt-4 flex gap-2">
                             <button id="printReport" class="btn-success text-sm">Print Report</button>
-                            <button id="downloadReport" class="btn-purple text-sm">Download PDF</button>
+                            <button id="downloadReport" class="btn-secondary text-sm">Download PDF</button>
                         </div>
                     </div>
                 </div>
@@ -812,7 +830,6 @@
                         </div>
                         <button type="submit" class="w-full btn-primary py-2 text-sm">Change Password</button>
                     </form>
-                    <div id="changePasswordMsg" class="mt-3"></div>
 
                     <h3 class="text-lg font-semibold text-gray-800 mt-8 mb-3">Data</h3>
                     <p class="text-gray-500 text-sm mb-3">Import a JSON backup permanently into your account, or download your data as JSON.</p>
@@ -821,7 +838,6 @@
                         <button type="button" id="accountImportBtn" class="btn-secondary py-2 px-4 text-sm">Import JSON…</button>
                         <button type="button" id="accountDownloadBtn" class="btn-secondary py-2 px-4 text-sm">Download my data (JSON)</button>
                     </div>
-                    <div id="accountDataMsg" class="mt-3"></div>
                 </div>
             </div>
 
@@ -876,17 +892,30 @@
             const total = Math.round(totalToday || 0);
             const g = Number(goal) || 2000;
 
-            calEl.textContent = `${total} kcal`;
+            calEl.textContent = total;
             goalEl.textContent = g;
 
-            const remaining = Math.max(g - total, 0);
-            remEl.textContent = Math.round(remaining);
+            const remaining = g - total;
+            remEl.textContent = Math.max(Math.round(remaining), 0);
+            remEl.className = 'calorie-stat-value ' + (remaining > 0 ? 'text-green-600' : 'text-red-500');
 
             const pct = g > 0 ? Math.min((total / g) * 100, 100) : 0;
             bar.style.width = `${pct}%`;
-            bar.className = 'h-2.5 rounded-full transition-all duration-300 ' +
-                (pct < 80 ? 'bg-green-500' : pct < 100 ? 'bg-yellow-500' : 'bg-red-500');
+            bar.className = 'h-2 rounded-full transition-all duration-500 ' +
+                (pct < 80 ? 'bg-green-500' : pct < 100 ? 'bg-yellow-400' : 'bg-red-500');
         }
+
+        // Wire up goal editor toggle
+        document.addEventListener('DOMContentLoaded', () => {
+            const toggle = document.getElementById('editGoalToggle');
+            const editor = document.getElementById('goalEditor');
+            if (toggle && editor) {
+                toggle.addEventListener('click', () => {
+                    editor.classList.toggle('hidden');
+                    editor.classList.toggle('flex');
+                });
+            }
+        });
 
         // Expose globally
         window.updateCalorieSummary = updateCalorieSummary;
