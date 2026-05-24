@@ -1059,6 +1059,26 @@ app.get('/api/top_foods', async (req, res) => {
     }
 });
 
+app.get('/api/top_foods_with_calories', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(sanitize(req.query.limit) || '20', 10) || 20, 100);
+        const rows = await dbAll(req.userDb, `
+            SELECT food_name as name, SUM(cnt) as count, last_cal as calories FROM (
+                SELECT meal_name as food_name, COUNT(*) as cnt,
+                    (SELECT calories FROM meal_log m2 WHERE m2.meal_name = meal_log.meal_name ORDER BY m2.id DESC LIMIT 1) as last_cal
+                FROM meal_log GROUP BY meal_name
+                UNION ALL
+                SELECT name as food_name, COUNT(*) as cnt,
+                    (SELECT calories FROM quick_add_log q2 WHERE q2.name = quick_add_log.name ORDER BY q2.id DESC LIMIT 1) as last_cal
+                FROM quick_add_log GROUP BY name
+            ) GROUP BY food_name ORDER BY count DESC LIMIT ?
+        `, [limit]);
+        return res.json({ status: 'success', foods: rows });
+    } catch (err) {
+        return res.status(500).json({ status: 'error', message: 'Database error' });
+    }
+});
+
 // --- Preferences ---
 
 app.get('/api/preferences', async (req, res) => {

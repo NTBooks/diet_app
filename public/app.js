@@ -71,6 +71,24 @@ const getCalorieDensityColors = (caloriesPerServing, ouncesPerServing, unitType)
 };
 
 // ==============================================
+//  BROAD CATEGORY MAPPING
+// ==============================================
+
+const BROAD_CATEGORY_MAP = {
+    'Beef': 'Protein', 'Pork': 'Protein', 'Poultry': 'Protein',
+    'Seafood': 'Protein', 'Dairy & Eggs': 'Protein',
+    'Grains': 'Grains/Carbs', 'Legumes': 'Grains/Carbs',
+    'Vegetables': 'Vegetables',
+    'Fruits': 'Fruits',
+    'Oils & Condiments': 'Fats/Oils', 'Nuts & Seeds': 'Fats/Oils', 'Sauces': 'Fats/Oils',
+};
+const BROAD_CATEGORY_ORDER = ['Protein', 'Vegetables', 'Fruits', 'Grains/Carbs', 'Fats/Oils', 'Other'];
+
+function getBroadCategory(fineCategory) {
+    return BROAD_CATEGORY_MAP[fineCategory] || 'Other';
+}
+
+// ==============================================
 //  AUTH FLOW
 // ==============================================
 
@@ -568,7 +586,7 @@ function sortMealsByCategoryThenName(meals) {
     });
 }
 
-function renderMealComboboxDropdown(meals) {
+function renderMealComboboxDropdown(meals, query) {
     const dropdown = document.getElementById('mealTemplateDropdown');
     if (!dropdown) return;
 
@@ -578,23 +596,38 @@ function renderMealComboboxDropdown(meals) {
         return;
     }
 
-    const byCategory = {};
+    const byBroadCategory = {};
     meals.forEach(meal => {
-        const cat = meal.category || 'Other';
-        if (!byCategory[cat]) byCategory[cat] = [];
-        byCategory[cat].push(meal);
+        const broadCat = getBroadCategory(meal.category || 'Other');
+        if (!byBroadCategory[broadCat]) byBroadCategory[broadCat] = [];
+        byBroadCategory[broadCat].push(meal);
     });
 
-    const categories = Object.keys(byCategory).sort((a, b) => a.localeCompare(b));
+    const categories = BROAD_CATEGORY_ORDER.filter(cat => byBroadCategory[cat]);
+    const q = (query || '').trim().toLowerCase();
+
     let html = '';
     categories.forEach(cat => {
-        html += `<div class="px-2 pt-2 pb-0.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">${cat}</div>`;
-        byCategory[cat].forEach(meal => {
+        html += `<div class="px-2 pt-2 pb-0.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide bg-gray-50 sticky top-0">${cat}</div>`;
+        byBroadCategory[cat].forEach(meal => {
             const unitType = meal.unit_type || 'piece';
-            const displayText = mealToOptionText(meal);
             const colors = getCalorieDensityColors(meal.calories_per_serving, meal.ounces_per_serving, unitType);
-            const escaped = displayText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            html += `<div class="meal-combobox-option px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-0" role="option" tabindex="-1" data-meal-id="${meal.id}" style="background-color:${colors.bg};color:${colors.text}">${escaped}</div>`;
+
+            let highlightedName = meal.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            if (q) {
+                const idx = meal.name.toLowerCase().indexOf(q);
+                if (idx >= 0) {
+                    const safeName = meal.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    highlightedName = safeName.substring(0, idx)
+                        + '<mark class="bg-yellow-200 rounded px-0.5">'
+                        + safeName.substring(idx, idx + q.length)
+                        + '</mark>'
+                        + safeName.substring(idx + q.length);
+                }
+            }
+            const suffix = ` (${meal.calories_per_serving} cal/${meal.ounces_per_serving} ${unitType})`;
+
+            html += `<div class="meal-combobox-option px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 border-b border-gray-50 last:border-0" role="option" tabindex="-1" data-meal-id="${meal.id}" style="background-color:${colors.bg};color:${colors.text}">${highlightedName}<span class="text-xs opacity-70">${suffix}</span></div>`;
         });
     });
     dropdown.innerHTML = html;
@@ -604,7 +637,16 @@ function renderMealComboboxDropdown(meals) {
 function filterMealsBySearch(meals, query, selectedId) {
     const q = (query || '').trim().toLowerCase();
     if (!q) return meals;
-    const filtered = meals.filter(m => (m.name || '').toLowerCase().includes(q));
+    const words = q.split(/\s+/).filter(w => w.length > 0);
+    const filtered = meals.filter(m => {
+        const name = (m.name || '').toLowerCase();
+        return words.every(w => name.includes(w));
+    });
+    filtered.sort((a, b) => {
+        const aExact = a.name.toLowerCase().includes(q) ? 0 : 1;
+        const bExact = b.name.toLowerCase().includes(q) ? 0 : 1;
+        return aExact - bExact;
+    });
     if (selectedId && !filtered.some(m => m.id === selectedId)) {
         const selected = meals.find(m => m.id === selectedId);
         if (selected) filtered.unshift(selected);
@@ -638,8 +680,12 @@ function setupMealCombobox() {
     if (!combobox || !hidden || !dropdown) return;
 
     function showFiltered(query) {
+        if (query.length < 1) {
+            hideMealComboboxDropdown();
+            return;
+        }
         const filtered = filterMealsBySearch(allMealsForSelect, query, null);
-        renderMealComboboxDropdown(filtered);
+        renderMealComboboxDropdown(filtered, query);
         combobox.setAttribute('aria-expanded', 'true');
     }
 
@@ -651,7 +697,10 @@ function setupMealCombobox() {
     });
 
     combobox.addEventListener('focus', () => {
-        showFiltered(combobox.value.trim());
+        const q = combobox.value.trim();
+        if (q.length >= 1) {
+            showFiltered(q);
+        }
     });
 
     combobox.addEventListener('blur', () => {
@@ -1608,13 +1657,182 @@ async function loadTodayWeight() {
         const res = await apiFetch(`/api/weight_log_for_day?date=${today}`);
         const data = await res.json();
         const el = document.getElementById('todayWeight');
-        if (data.status === 'success' && data.weight) {
-            el.innerHTML = `<span class="text-lg font-bold">${data.weight} lbs</span>`;
-        } else {
-            el.innerHTML = '<span class="text-gray-400">No weight logged today</span>';
+        if (el) {
+            if (data.status === 'success' && data.weight) {
+                el.innerHTML = `<span class="text-lg font-bold">${data.weight} lbs</span>`;
+            } else {
+                el.innerHTML = '<span class="text-gray-400">No weight logged today</span>';
+            }
         }
     } catch (err) {
         console.error('Error loading weight:', err);
+    }
+}
+
+// ==============================================
+//  HOME PAGE: WEIGHT ENTRY LOCK/UNLOCK
+// ==============================================
+
+async function initHomeWeightEntry() {
+    const lockedDiv = document.getElementById('weightLocked');
+    const unlockedDiv = document.getElementById('weightUnlocked');
+    const lockedValue = document.getElementById('weightLockedValue');
+    const input = document.getElementById('homeWeightInput');
+    const saveBtn = document.getElementById('homeWeightSaveBtn');
+    const editBtn = document.getElementById('weightEditBtn');
+    if (!lockedDiv || !unlockedDiv) return;
+
+    function lockWeight(weight) {
+        lockedValue.textContent = weight;
+        lockedDiv.classList.remove('hidden');
+        unlockedDiv.classList.add('hidden');
+    }
+
+    function unlockWeight() {
+        lockedDiv.classList.add('hidden');
+        unlockedDiv.classList.remove('hidden');
+        input.focus();
+    }
+
+    const today = getTodayLocalDate();
+    try {
+        const res = await apiFetch(`/api/weight_log_for_day?date=${today}`);
+        const data = await res.json();
+        if (data.status === 'success' && data.weight) {
+            lockWeight(data.weight);
+        } else {
+            unlockWeight();
+        }
+    } catch (err) {
+        unlockWeight();
+    }
+
+    editBtn.addEventListener('click', () => {
+        input.value = lockedValue.textContent;
+        unlockWeight();
+    });
+
+    saveBtn.addEventListener('click', async () => {
+        const weight = parseFloat(input.value);
+        if (!weight || weight < 50 || weight > 1000) {
+            showToast('Enter a valid weight (50-1000 lbs)', 'error');
+            return;
+        }
+        try {
+            const res = await apiPost('/api/weight_log', { weight, date: getTodayLocalDate() });
+            const data = await res.json();
+            if (data.status === 'success') {
+                lockWeight(weight);
+                showToast('Weight logged!');
+                loadHomeWeightChart();
+                chartsRendered = false;
+            } else {
+                showToast(data.message || 'Failed to log weight', 'error');
+            }
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveBtn.click();
+        }
+    });
+}
+
+// ==============================================
+//  HOME PAGE: WEIGHT TREND CHART
+// ==============================================
+
+async function loadHomeWeightChart() {
+    try {
+        if (typeof ApexCharts === 'undefined') return;
+        const res = await apiFetch('/api/weight_log_all');
+        const data = await res.json();
+
+        const chartEl = document.getElementById('homeWeightChart');
+        if (!chartEl) return;
+        chartEl.innerHTML = '';
+        if (window.homeWeightChart && typeof window.homeWeightChart.destroy === 'function') {
+            window.homeWeightChart.destroy();
+        }
+
+        if (data.status === 'success' && data.weights && data.weights.length > 0) {
+            const sorted = [...data.weights].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const points = sorted.map(w => ({ x: new Date(w.date + 'T00:00:00').getTime(), y: w.weight }));
+            const trend = calculateTrendLine(sorted);
+            const trendPts = points.map((p, i) => ({ x: p.x, y: trend[i] }));
+
+            window.homeWeightChart = new ApexCharts(chartEl, {
+                series: [
+                    { name: 'Weight', data: points, type: 'line' },
+                    { name: 'Trend', data: trendPts, type: 'line' }
+                ],
+                chart: { height: 180, type: 'line', animations: { enabled: false }, toolbar: { show: false } },
+                colors: ['#4f46e5', '#ef4444'],
+                stroke: { curve: 'straight', width: [2, 1], dashArray: [0, 5] },
+                markers: { size: [2, 0] },
+                xaxis: { type: 'datetime', labels: { show: true, style: { fontSize: '10px' } } },
+                yaxis: { labels: { formatter: v => v + '', style: { fontSize: '10px' } } },
+                tooltip: { y: { formatter: v => v + ' lbs' } },
+                legend: { show: false },
+                grid: { borderColor: '#e5e7eb', padding: { left: 5, right: 5 } }
+            });
+            window.homeWeightChart.render();
+        } else {
+            chartEl.innerHTML = '<div class="text-gray-400 text-center py-4 text-sm">No weight data yet</div>';
+        }
+    } catch (err) {
+        console.error('Home weight chart error:', err);
+    }
+}
+
+// ==============================================
+//  HOME PAGE: COMMON FOODS CHIPS
+// ==============================================
+
+async function loadQuickFoodsChips() {
+    const container = document.getElementById('quickFoodsChips');
+    if (!container) return;
+
+    try {
+        const res = await apiFetch('/api/top_foods_with_calories?limit=20');
+        const data = await res.json();
+
+        if (data.status !== 'success' || !data.foods || data.foods.length === 0) {
+            container.innerHTML = '<div class="text-gray-400 text-sm">Log some foods first to see your common foods here.</div>';
+            return;
+        }
+
+        container.innerHTML = data.foods.map(food => {
+            const cal = Math.round(food.calories);
+            const escapedName = food.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+            return `<button type="button" class="quick-food-chip inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors" data-food-name="${escapedName}" data-food-calories="${cal}">${escapedName} <span class="text-xs text-indigo-400">${cal}cal</span></button>`;
+        }).join('');
+
+        container.querySelectorAll('.quick-food-chip').forEach(chip => {
+            chip.addEventListener('click', async () => {
+                const name = chip.dataset.foodName;
+                const calories = parseInt(chip.dataset.foodCalories, 10);
+                const today = getTodayLocalDate();
+                try {
+                    const res = await apiPost('/api/quick_add', { name, calories, date: today });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        showToast(`Logged ${name} (${calories} cal)`);
+                        renderTodayMeals();
+                    } else {
+                        showToast(data.message || 'Failed to log', 'error');
+                    }
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+            });
+        });
+    } catch (err) {
+        container.innerHTML = '<div class="text-gray-400 text-sm">Could not load common foods.</div>';
     }
 }
 
@@ -2031,6 +2249,8 @@ function checkMidnightCrossing() {
     if (needsUpdate) {
         renderTodayMeals();
         loadTodayWeight();
+        initHomeWeightEntry();
+        loadHomeWeightChart();
     }
 }
 
@@ -2157,6 +2377,9 @@ async function initApp() {
     loadSavedMeals();
     loadLatestBPReading();
     loadTodayWeight();
+    initHomeWeightEntry();
+    loadHomeWeightChart();
+    loadQuickFoodsChips();
 
     // Event listeners
     const loadCalBtn = document.getElementById('loadCalendar');
