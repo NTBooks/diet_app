@@ -1,5 +1,6 @@
 ---
-slopscore: 1
+slopscore: 2
+spec: https://slopscore.org/spec
 ai_generated: entirely
 human_touch: light
 content_rating: everyone
@@ -15,6 +16,7 @@ audience: [me, end-users]
 data: [local-only]
 domain: [diet-tracking, health-logging]
 tags: [sqlite, electron, calories, blood-pressure, quick-add]
+slopbucket: [web-app, weekend-project]
 ---
 Meal templates with calories and serving sizes, a daily log with quick-add chips for the foods you actually eat, a weight trend chart, blood pressure readings with categories, closed days, and a calendar of totals. Everything lives in a local SQLite file, with JSON export and import so the data is yours.
 
